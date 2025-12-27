@@ -71,24 +71,25 @@ int IR_RR_read(); // 讀取最右側紅外線感測器
 
 // --- 馬達控制 ---
 void motor(int L, int R); // 馬達控制 (L:左輪速度, R:右輪速度, 正值前進/負值後退)
-void forward();  // 前進
-void backward(); // 後退
-void m_Left();   // 左轉 (左輪停止)
-void m_Right();  // 右轉 (右輪停止)
-void b_Left();   // 急左轉 (左輪反轉)
-void b_Right();  // 急右轉 (右輪反轉)
-void stop();     // 停止
+void forward();           // 前進
+void backward();          // 後退
+void m_Left();            // 左轉 (左輪停止)
+void m_Right();           // 右轉 (右輪停止)
+void b_Left();            // 急左轉 (左輪反轉)
+void b_Right();           // 急右轉 (右輪反轉)
+void stop();              // 停止
 
 // --- 伺服馬達控制 ---
-void arm_up();   // 手臂升起
-void arm_down(); // 手臂下降
-void claw_open(); // 爪子開啟
+void arm_up();     // 手臂升起
+void arm_down();   // 手臂下降
+void claw_open();  // 爪子開啟
 void claw_close(); // 爪子關閉
 
 // --- 測試指令 ---
 void test_encoder(); // 編碼馬達測試 (顯示編碼器計數值)
 void test_servo();   // 伺服馬達測試 (手臂和爪子動作)
 void test_motor();   // 馬達測試 (前進、後退、左轉、右轉)
+void test_ir();      // 紅外線感測器測試 (顯示感測器狀態)
 
 // ===== 自訂函式區 =====
 // TODO: 請在此區塊建立你的自訂函式
@@ -102,14 +103,35 @@ void test_motor();   // 馬達測試 (前進、後退、左轉、右轉)
 // 【建議建立的函式】
 //
 // --- 紅外線感測器 ---
-// 功能：讀取感測器數值，回傳 0 (白線) 或 1 (黑線)
-// 提示：使用 analogRead(腳位) 讀取，與 IR_THRESHOLD 比較
-//
+
+int IR_LL_read()
+{
+  int sensorValue = analogRead(IR_LL_PIN);
+  return (sensorValue > IR_THRESHOLD) ? 1 : 0;
+}
+int IR_L_read()
+{
+  int sensorValue = analogRead(IR_L_PIN);
+  return (sensorValue > IR_THRESHOLD) ? 1 : 0;
+}
+int IR_M_read()
+{
+  int sensorValue = analogRead(IR_M_PIN);
+  return (sensorValue > IR_THRESHOLD) ? 1 : 0;
+}
+int IR_R_read()
+{
+  int sensorValue = analogRead(IR_R_PIN);
+  return (sensorValue > IR_THRESHOLD) ? 1 : 0;
+}
+int IR_RR_read()
+{
+  int sensorValue = analogRead(IR_RR_PIN);
+  return (sensorValue > IR_THRESHOLD) ? 1 : 0;
+}
+
 // --- 馬達控制 ---
-// 功能：控制左右馬達速度 (-255~255)
-// 提示：使用 ledcWrite(通道, PWM值) 控制輸出
-//       正值 → 正轉通道輸出，反轉通道=0
-//       負值 → 正轉通道=0，反轉通道輸出
+
 void forward()
 {
   motor(250, 200);
@@ -212,6 +234,26 @@ void test_motor()
   Serial.println("Motor Test End");
 }
 
+void test_ir()
+{
+  Serial.println("IR Sensor Test Start");
+  while (true)
+  {
+    Serial.print("LL: ");
+    Serial.print(IR_LL_read());
+    Serial.print(" L: ");
+    Serial.print(IR_L_read());
+    Serial.print(" M: ");
+    Serial.print(IR_M_read());
+    Serial.print(" R: ");
+    Serial.print(IR_R_read());
+    Serial.print(" RR: ");
+    Serial.println(IR_RR_read());
+    delay(500);
+  }
+  Serial.println("IR Sensor Test End");
+}
+
 // ===== 主程式 =====
 void setup()
 {
@@ -258,14 +300,11 @@ void setup()
   ledcAttachPin(MOTOR_R_FWD, CH_R_FWD);
 
   // TODO: 初始化完成後，可呼叫停止函式確保馬達不會亂轉
-  
-//--------------------------程式開始-----------------------------
-  m_Left();
-  delay(1000);
-  m_Right();
-  delay(1000);
-  stop();
-//--------------------------------------------------------------
+
+  //--------------------------程式開始-----------------------------
+  test_ir(); // 執行紅外線感測器測試
+
+  //--------------------------------------------------------------
 }
 
 void loop()
