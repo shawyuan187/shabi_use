@@ -63,36 +63,32 @@ Servo claw; // 爪子伺服馬達
 //       例如：void forward(); 或 int IR_M_read();
 
 // --- 紅外線感測器 ---
-// TODO: 請宣告以下函式 (回傳 int，無參數)
-// IR_LL_read - 讀取最左側紅外線感測器
-// IR_L_read  - 讀取左側紅外線感測器
-// IR_M_read  - 讀取中間紅外線感測器
-// IR_R_read  - 讀取右側紅外線感測器
-// IR_RR_read - 讀取最右側紅外線感測器
+int IR_LL_read(); // 讀取最左側紅外線感測器
+int IR_L_read();  // 讀取左側紅外線感測器
+int IR_M_read();  // 讀取中間紅外線感測器
+int IR_R_read();  // 讀取右側紅外線感測器
+int IR_RR_read(); // 讀取最右側紅外線感測器
 
 // --- 馬達控制 ---
-// TODO: 請宣告以下函式
-// motor(int L, int R) - 馬達控制 (L:左輪速度, R:右輪速度, 正值前進/負值後退)
-// forward  - 前進
-// backward - 後退
-// m_Left   - 左轉 (左輪停止)
-// m_Right  - 右轉 (右輪停止)
-// b_Left   - 急左轉 (左輪反轉)
-// b_Right  - 急右轉 (右輪反轉)
-// stop     - 停止
+void motor(int L, int R); // 馬達控制 (L:左輪速度, R:右輪速度, 正值前進/負值後退)
+void forward();  // 前進
+void backward(); // 後退
+void m_Left();   // 左轉 (左輪停止)
+void m_Right();  // 右轉 (右輪停止)
+void b_Left();   // 急左轉 (左輪反轉)
+void b_Right();  // 急右轉 (右輪反轉)
+void stop();     // 停止
 
 // --- 伺服馬達控制 ---
-// TODO: 請宣告以下函式 (回傳 void，無參數)
-// arm_up    - 手臂升起
-// arm_down  - 手臂下降
-// claw_open  - 爪子開啟
-// claw_close - 爪子關閉
+void arm_up();   // 手臂升起
+void arm_down(); // 手臂下降
+void claw_open(); // 爪子開啟
+void claw_close(); // 爪子關閉
 
 // --- 測試指令 ---
-// TODO: 請宣告以下函式 (回傳 void，無參數)
-// test_encoder - 編碼馬達測試 (顯示編碼器計數值)
-// test_servo   - 伺服馬達測試 (手臂和爪子動作)
-// test_motor   - 馬達測試 (前進、後退、左轉、右轉)
+void test_encoder(); // 編碼馬達測試 (顯示編碼器計數值)
+void test_servo();   // 伺服馬達測試 (手臂和爪子動作)
+void test_motor();   // 馬達測試 (前進、後退、左轉、右轉)
 
 // ===== 自訂函式區 =====
 // TODO: 請在此區塊建立你的自訂函式
@@ -114,7 +110,57 @@ Servo claw; // 爪子伺服馬達
 // 提示：使用 ledcWrite(通道, PWM值) 控制輸出
 //       正值 → 正轉通道輸出，反轉通道=0
 //       負值 → 正轉通道=0，反轉通道輸出
-//
+void forward()
+{
+  motor(200, 200);
+}
+void backward()
+{
+  motor(-200, -200);
+}
+void m_Left()
+{
+  motor(0, 200);
+}
+void m_Right()
+{
+  motor(200, 0);
+}
+void b_Left()
+{
+  motor(-200, 200);
+}
+void b_Right()
+{
+  motor(200, -200);
+}
+void stop()
+{
+  motor(0, 0);
+}
+void motor(int L, int R)
+{
+  if (L > 0)
+  {
+    ledcWrite(CH_L_FWD, constrain(abs(L), 0, 255));
+    ledcWrite(CH_L_BWD, 0);
+  }
+  else
+  {
+    ledcWrite(CH_L_FWD, 0);
+    ledcWrite(CH_L_BWD, constrain(abs(L), 0, 255));
+  }
+  if (R > 0)
+  {
+    ledcWrite(CH_R_FWD, constrain(abs(R), 0, 255));
+    ledcWrite(CH_R_BWD, 0);
+  }
+  else
+  {
+    ledcWrite(CH_R_FWD, 0);
+    ledcWrite(CH_R_BWD, constrain(abs(R), 0, 255));
+  }
+}
 // --- 動作函式 ---
 // 功能：前進、後退、左轉、右轉、停止等
 // 提示：呼叫馬達控制函式，帶入適當的左右輪速度
@@ -126,6 +172,45 @@ Servo claw; // 爪子伺服馬達
 // --- 測試函式 ---
 // 功能：測試各元件是否正常運作
 // 提示：依序執行動作並用 Serial 輸出狀態
+void test_motor()
+{
+  Serial.println("Motor Test Start");
+  Serial.println("Forward");
+  forward();
+  delay(1000);
+  Serial.println("stop");
+  stop();
+  delay(1000);
+  Serial.println("Backward");
+  backward();
+  delay(1000);
+  Serial.println("stop");
+  stop();
+  delay(1000);
+  Serial.println("Left");
+  m_Left();
+  delay(1000);
+  Serial.println("stop");
+  stop();
+  delay(1000);
+  Serial.println("Right");
+  m_Right();
+  delay(1000);
+  Serial.println("stop");
+  stop();
+  Serial.println("b_Left");
+  b_Left();
+  delay(1000);
+  Serial.println("stop");
+  stop();
+  delay(1000);
+  Serial.println("b_Right");
+  b_Right();
+  delay(1000);
+  Serial.println("stop");
+  stop();
+  Serial.println("Motor Test End");
+}
 
 // ===== 主程式 =====
 void setup()
@@ -173,7 +258,9 @@ void setup()
   ledcAttachPin(MOTOR_R_FWD, CH_R_FWD);
 
   // TODO: 初始化完成後，可呼叫停止函式確保馬達不會亂轉
-  // stop();
+  
+//--------------------------程式開始-----------------------------
+  forward();
 }
 
 void loop()
