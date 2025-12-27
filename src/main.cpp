@@ -91,6 +91,9 @@ void test_servo();   // 伺服馬達測試 (手臂和爪子動作)
 void test_motor();   // 馬達測試 (前進、後退、左轉、右轉)
 void test_ir();      // 紅外線感測器測試 (顯示感測器狀態)
 
+// --- 循跡功能 ---
+void trail();       // 循跡
+
 // ===== 自訂函式區 =====
 // TODO: 請在此區塊建立你的自訂函式
 //
@@ -254,6 +257,36 @@ void test_ir()
   Serial.println("IR Sensor Test End");
 }
 
+// --- 循跡功能 ---
+void trail()
+{
+  if (IR_M_read() == 1)
+  {
+    if (IR_L_read() == 1 && IR_R_read() == 0)
+    {
+      m_Left(); // 左轉
+    }
+    else if (IR_L_read() == 0 && IR_R_read() == 1)
+    {
+      m_Right(); // 右轉
+    }
+    else
+    {
+      forward(); // 前進
+    }
+  }
+  else
+  {
+    if ((IR_L_read() == 1) && (IR_R_read() == 0))
+    {
+      m_Left(); // 左轉
+    }
+    else if ((IR_L_read() == 0) && (IR_R_read() == 1))
+    {
+      m_Right(); // 右轉
+    }
+  }
+}
 // ===== 主程式 =====
 void setup()
 {
@@ -302,7 +335,10 @@ void setup()
   // TODO: 初始化完成後，可呼叫停止函式確保馬達不會亂轉
 
   //--------------------------程式開始-----------------------------
-  test_ir(); // 執行紅外線感測器測試
+  while (true)
+  {
+    trail(); // 執行循跡功能
+  }
 
   //--------------------------------------------------------------
 }
