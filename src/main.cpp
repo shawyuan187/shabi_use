@@ -165,6 +165,8 @@ void b_Right()
 void stop()
 {
   motor(0, 0);
+  leftEncoder.clearCount();
+  rightEncoder.clearCount();
 }
 void motor(int L, int R)
 {
@@ -260,6 +262,19 @@ void test_ir()
   Serial.println("IR Sensor Test End");
 }
 
+void test_encoder()
+{
+  long leftCount = leftEncoder.getCount();
+  long rightCount = rightEncoder.getCount();
+
+  Serial.print("Left Encoder Count: ");
+  Serial.println(leftCount);
+  Serial.print("Right Encoder Count: ");
+  Serial.println(rightCount);
+
+  delay(100);
+}
+
 // --- 循跡功能 ---
 void trail()
 {
@@ -347,7 +362,7 @@ void setup()
   // --- 編碼器初始化 ---
   ESP32Encoder::useInternalWeakPullResistors = puType::up;
   leftEncoder.attachHalfQuad(LEFT_ENCODER_A, LEFT_ENCODER_B);
-  leftEncoder.clearCount();
+  leftEncoder.clearCount(); //! 清除左輪計數值
   rightEncoder.attachHalfQuad(RIGHT_ENCODER_A, RIGHT_ENCODER_B);
   rightEncoder.clearCount();
 
@@ -378,10 +393,11 @@ void setup()
   // TODO: 初始化完成後，可呼叫停止函式確保馬達不會亂轉
 
   //--------------------------程式開始-----------------------------
-  arm_down();
-  delay(200);
-  claw_close();
-  delay(200);
+  while (true)
+  {
+    test_encoder();
+    delay(500);
+  }
 
   //--------------------------------------------------------------
 }
