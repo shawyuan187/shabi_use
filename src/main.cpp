@@ -85,6 +85,9 @@ void arm_down();   // 手臂下降
 void claw_open();  // 爪子開啟
 void claw_close(); // 爪子關閉
 
+void pick_up();
+void put_down();
+
 // --- 測試指令 ---
 void test_encoder(); // 編碼馬達測試 (顯示編碼器計數值)
 void test_servo();   // 伺服馬達測試 (手臂和爪子動作)
@@ -92,7 +95,7 @@ void test_motor();   // 馬達測試 (前進、後退、左轉、右轉)
 void test_ir();      // 紅外線感測器測試 (顯示感測器狀態)
 
 // --- 循跡功能 ---
-void trail();       // 循跡
+void trail(); // 循跡
 
 // ===== 自訂函式區 =====
 // TODO: 請在此區塊建立你的自訂函式
@@ -287,6 +290,46 @@ void trail()
     }
   }
 }
+
+// --- 伺服馬達控制 ---
+void arm_up()
+{
+  arm.write(ARM_UP);
+}
+
+void arm_down()
+{
+  arm.write(ARM_DOWN);
+}
+
+void claw_open()
+{
+  claw.write(CLAW_OPEN);
+}
+
+void claw_close()
+{
+  claw.write(CLAW_CLOSE);
+}
+
+void pick_up()
+{
+  claw_open();
+  delay(200);
+  arm_down();
+  delay(200);
+  claw_close();
+  delay(200);
+  arm_up();
+  delay(200);
+}
+
+void put_down()
+{
+  claw_open();
+  delay(200);
+}
+
 // ===== 主程式 =====
 void setup()
 {
@@ -335,10 +378,10 @@ void setup()
   // TODO: 初始化完成後，可呼叫停止函式確保馬達不會亂轉
 
   //--------------------------程式開始-----------------------------
-  while (true)
-  {
-    trail(); // 執行循跡功能
-  }
+  arm_down();
+  delay(200);
+  claw_close();
+  delay(200);
 
   //--------------------------------------------------------------
 }
