@@ -137,6 +137,7 @@ int IR_RR_read()
 }
 
 // --- 馬達控制 ---
+//!---------------------左側馬達力量較小(50左右),待調-----------------------
 
 void forward()
 {
@@ -305,7 +306,183 @@ void trail()
     }
   }
 }
+//todo: PID trail
+//!----------from aerc2-------------
+// void PID_right(int baseSpeed, int turnSpeedL, int turnSpeedR, float Kp, float Kd, bool useStop)
+// {
+//     PID_trail(false, []()
+//               { return (IR_RR == 1); }, Kp, Kd, 0, baseSpeed, 0);
+//     while (!(IR_RR == 0))
+//     {
+//         motor(baseSpeed, baseSpeed);
+//         IR_update();
+//     }
+//     if (useStop)
+//     {
+//         stop();
+//     }
+//     while (!(IR_RR))
+//     {
+//         IR_update();
+//         motor(turnSpeedL, turnSpeedR);
+//     }
+//     while (!(IR_RR == 0))
+//     {
+//         IR_update();
+//         motor(turnSpeedL, turnSpeedR);
+//     }
+// }
 
+// void PID_left(int baseSpeed, int turnSpeedL, int turnSpeedR, float Kp, float Kd, bool useStop)
+// {
+//     PID_trail(false, []()
+//               { return (IR_LL == 1); }, Kp, Kd, 0, baseSpeed, 0);
+//     while (!(IR_LL == 0))
+//     {
+//         motor(baseSpeed, baseSpeed);
+//         IR_update();
+//     }
+//     if (useStop)
+//     {
+//         stop();
+//     }
+//     while (!(IR_LL))
+//     {
+//         IR_update();
+//         motor(turnSpeedL, turnSpeedR);
+//     }
+//     while (!(IR_LL == 0))
+//     {
+//         IR_update();
+//         motor(turnSpeedL, turnSpeedR);
+//     }
+// }
+// int PID_trail(bool useFiveIR, bool (*exitCondition)(), float Kp, float Kd, float Ki, int baseSpeed, unsigned long ms, bool useUltraSonic, int lastError)
+// {
+//     const int minimumSpeed = -255; // 最小速度
+//     const int maximumSpeed = 255;  // 最大速度
+//     int integral = 0;              // 積分項
+
+//     unsigned long start_time = millis();
+
+//     while (true)
+//     {
+//         if (ms > 0 && millis() - start_time >= ms)
+//         {
+//             break;
+//         }
+
+//         IR_update();
+
+//         if (useUltraSonic)
+//         {
+//             ultrasonic();
+//         }
+//         // 計算偏差值
+//         int error = 0;
+
+//         if (useFiveIR)
+//         {
+//             if (IR_LL == 0 && IR_L == 0 && IR_M == 1 && IR_R == 0 && IR_RR == 0)
+//             {
+//                 error = 0;
+//             }
+//             else if (IR_LL == 0 && IR_L == 1 && IR_M == 1 && IR_R == 0 && IR_RR == 0)
+//             {
+//                 error = -0.4;
+//             }
+//             else if (IR_LL == 0 && IR_L == 0 && IR_M == 1 && IR_R == 1 && IR_RR == 0)
+//             {
+//                 error = 0.4;
+//             }
+//             else if (IR_LL == 0 && IR_L == 1 && IR_M == 0 && IR_R == 0 && IR_RR == 0)
+//             {
+//                 error = -1.9;
+//             }
+//             else if (IR_LL == 0 && IR_L == 0 && IR_M == 0 && IR_R == 1 && IR_RR == 0)
+//             {
+//                 error = 1.9;
+//             }
+//             else if (IR_LL == 1 && IR_L == 1 && IR_M == 0 && IR_R == 0 && IR_RR == 0)
+//             {
+//                 error = -2.8;
+//             }
+//             else if (IR_LL == 0 && IR_L == 0 && IR_M == 0 && IR_R == 1 && IR_RR == 1)
+//             {
+//                 error = 2.8;
+//             }
+//             else if (IR_LL == 1 && IR_L == 0 && IR_M == 0 && IR_R == 0 && IR_RR == 0)
+//             {
+//                 error = -4.4;
+//             }
+//             else if (IR_LL == 0 && IR_L == 0 && IR_M == 0 && IR_R == 0 && IR_RR == 1)
+//             {
+//                 error = 4.4;
+//             }
+//             else
+//             {
+//                 error = lastError;
+//             }
+//         }
+//         else
+//         {
+//             if (IR_L == 0 && IR_M == 1 && IR_R == 0)
+//             {
+//                 error = 0;
+//             }
+//             else if (IR_L == 1 && IR_M == 1 && IR_R == 0)
+//             {
+//                 error = -0.4;
+//             }
+//             else if (IR_L == 0 && IR_M == 1 && IR_R == 1)
+//             {
+//                 error = 0.4;
+//             }
+//             else if (IR_L == 1 && IR_M == 0 && IR_R == 0)
+//             {
+//                 error = -1.9;
+//             }
+//             else if (IR_L == 0 && IR_M == 0 && IR_R == 1)
+//             {
+//                 error = 1.9;
+//             }
+//             else
+//             {
+//                 error = lastError;
+//             }
+//         }
+
+//         // 計算積分項
+//         integral += error;
+
+//         // 計算微分項
+//         int derivative = error - lastError;
+
+//         // 計算調整值
+//         int adjustment = Kp * error + Ki * integral + Kd * derivative;
+
+//         // 計算新的馬達速度
+//         int speedL = baseSpeed + adjustment;
+//         int speedR = baseSpeed - adjustment;
+
+//         // 限制速度在最小和最大速度之間
+//         speedL = constrain(speedL, minimumSpeed, maximumSpeed);
+//         speedR = constrain(speedR, minimumSpeed, maximumSpeed);
+
+//         // 設置馬達速度
+//         motor(speedL, speedR);
+
+//         // 更新上一次的偏差值
+//         lastError = error;
+
+//         if (ms == 0 && exitCondition())
+//         {
+//             break;
+//         }
+//     }
+//     return lastError;
+// }
+//!---------from aerc2-------------
 // --- 伺服馬達控制 ---
 void arm_up()
 {
