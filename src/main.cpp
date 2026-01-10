@@ -157,11 +157,11 @@ void m_Right()
 }
 void b_Left()
 {
-  motor(-250, 200);
+  motor(-100, 50);
 }
 void b_Right()
 {
-  motor(250, -200);
+  motor(50, -100);
 }
 void stop()
 {
@@ -306,11 +306,11 @@ void trail()
     }
   }
 }
-//todo: PID trail
+// todo: Padilla trail
 //!----------from aerc2-------------
-// void PID_right(int baseSpeed, int turnSpeedL, int turnSpeedR, float Kp, float Kd, bool useStop)
+// void Padilla_right(int baseSpeed, int turnSpeedL, int turnSpeedR, float Kp, float Kd, bool useStop)
 // {
-//     PID_trail(false, []()
+//     Padilla_trail(false, []()
 //               { return (IR_RR == 1); }, Kp, Kd, 0, baseSpeed, 0);
 //     while (!(IR_RR == 0))
 //     {
@@ -333,9 +333,9 @@ void trail()
 //     }
 // }
 
-// void PID_left(int baseSpeed, int turnSpeedL, int turnSpeedR, float Kp, float Kd, bool useStop)
+// void Padilla_left(int baseSpeed, int turnSpeedL, int turnSpeedR, float Kp, float Kd, bool useStop)
 // {
-//     PID_trail(false, []()
+//     Padilla_trail(false, []()
 //               { return (IR_LL == 1); }, Kp, Kd, 0, baseSpeed, 0);
 //     while (!(IR_LL == 0))
 //     {
@@ -357,7 +357,7 @@ void trail()
 //         motor(turnSpeedL, turnSpeedR);
 //     }
 // }
-// int PID_trail(bool useFiveIR, bool (*exitCondition)(), float Kp, float Kd, float Ki, int baseSpeed, unsigned long ms, bool useUltraSonic, int lastError)
+// int Padilla  _trail(bool useFiveIR, bool (*exitCondition)(), float Kp, float Kd, float Ki, int baseSpeed, unsigned long ms, bool useUltraSonic, int lastError)
 // {
 //     const int minimumSpeed = -255; // 最小速度
 //     const int maximumSpeed = 255;  // 最大速度
@@ -570,11 +570,30 @@ void setup()
   // TODO: 初始化完成後，可呼叫停止函式確保馬達不會亂轉
 
   //--------------------------程式開始-----------------------------
-  while (true)
+  forward();
+  delay(250);
+  while (!(IR_L_read() == 1 && IR_M_read() == 1 && IR_R_read() == 1))
   {
-    test_encoder();
-    delay(500);
+    forward();
   }
+  delay(100);
+  while (IR_LL_read() == 1)
+  {
+    forward();
+  }
+  motor(-250, -200);
+  delay(100);
+  while (IR_LL_read() == 0)
+  {
+    b_Left();
+  }
+  while (IR_RR_read() == 0)
+  {
+    b_Right();
+  }
+  motor(-50, 0);
+  delay(200);
+  stop();
 
   //--------------------------------------------------------------
 }
