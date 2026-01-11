@@ -576,24 +576,24 @@ void setup()
   {
     forward();
   }
-  delay(100);
+  delay(100); // 抵達第一個路口
   while (IR_LL_read() == 1)
   {
     forward();
-  }
+  } // 稍微前進
   motor(-250, -200);
-  delay(100);
+  delay(100); // 停止
   while (IR_LL_read() == 0)
   {
     b_Left();
-  }
+  } // 左轉看物體
   while (IR_RR_read() == 0)
   {
     b_Right();
-  }
+  } // 右轉回到循跡線上
   motor(-50, 0);
   delay(200);
-  stop();
+  stop(); // 微調位置停止
 
   //--------------------------------------------------------------
 }
