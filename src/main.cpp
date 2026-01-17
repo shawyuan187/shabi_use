@@ -97,6 +97,11 @@ void test_ir();      // 紅外線感測器測試 (顯示感測器狀態)
 // --- 循跡功能 ---
 void trail(); // 循跡
 
+// Padilla 循跡功能
+int Padilla_trail(bool useFiveIR, bool (*exitCondition)(), float Kp, float Kd, float Ki, int baseSpeed, unsigned long ms, int lastError);
+void Padilla_right(int baseSpeed, int turnSpeedL, int turnSpeedR, float Kp, float Kd, bool useStop);
+void Padilla_left(int baseSpeed, int turnSpeedL, int turnSpeedR, float Kp, float Kd, bool useStop);
+
 // ===== 自訂函式區 =====
 // TODO: 請在此區塊建立你的自訂函式
 //
@@ -137,11 +142,11 @@ int IR_RR_read()
 }
 
 // --- 馬達控制 ---
-//!---------------------左側馬達力量較小(50左右),待調-----------------------
+//!---------------------左側馬達力量較小(35左右),待調-----------------------
 
 void forward()
 {
-  motor(250, 200);
+  motor(250, 215);
 }
 void backward()
 {
@@ -157,14 +162,16 @@ void m_Right()
 }
 void b_Left()
 {
-  motor(-100, 50);
+  motor(-110, 50);
 }
 void b_Right()
 {
-  motor(50, -100);
+  motor(60, -90);
 }
 void stop()
 {
+  motor(-255, -255);
+  delay(10);
   motor(0, 0);
   leftEncoder.clearCount();
   rightEncoder.clearCount();
@@ -308,180 +315,167 @@ void trail()
 }
 // todo: Padilla trail
 //!----------from aerc2-------------
-// void Padilla_right(int baseSpeed, int turnSpeedL, int turnSpeedR, float Kp, float Kd, bool useStop)
-// {
-//     Padilla_trail(false, []()
-//               { return (IR_RR == 1); }, Kp, Kd, 0, baseSpeed, 0);
-//     while (!(IR_RR == 0))
-//     {
-//         motor(baseSpeed, baseSpeed);
-//         IR_update();
-//     }
-//     if (useStop)
-//     {
-//         stop();
-//     }
-//     while (!(IR_RR))
-//     {
-//         IR_update();
-//         motor(turnSpeedL, turnSpeedR);
-//     }
-//     while (!(IR_RR == 0))
-//     {
-//         IR_update();
-//         motor(turnSpeedL, turnSpeedR);
-//     }
-// }
+int Padilla_trail(bool useFiveIR, bool (*exitCondition)(), float Kp, float Kd, float Ki, int baseSpeed, unsigned long ms, int lastError)
+{
+  const int minimumSpeed = -255; // 最小速度
+  const int maximumSpeed = 255;  // 最大速度
+  int integral = 0;              // 積分項
 
-// void Padilla_left(int baseSpeed, int turnSpeedL, int turnSpeedR, float Kp, float Kd, bool useStop)
-// {
-//     Padilla_trail(false, []()
-//               { return (IR_LL == 1); }, Kp, Kd, 0, baseSpeed, 0);
-//     while (!(IR_LL == 0))
-//     {
-//         motor(baseSpeed, baseSpeed);
-//         IR_update();
-//     }
-//     if (useStop)
-//     {
-//         stop();
-//     }
-//     while (!(IR_LL))
-//     {
-//         IR_update();
-//         motor(turnSpeedL, turnSpeedR);
-//     }
-//     while (!(IR_LL == 0))
-//     {
-//         IR_update();
-//         motor(turnSpeedL, turnSpeedR);
-//     }
-// }
-// int Padilla  _trail(bool useFiveIR, bool (*exitCondition)(), float Kp, float Kd, float Ki, int baseSpeed, unsigned long ms, bool useUltraSonic, int lastError)
-// {
-//     const int minimumSpeed = -255; // 最小速度
-//     const int maximumSpeed = 255;  // 最大速度
-//     int integral = 0;              // 積分項
+  unsigned long start_time = millis();
 
-//     unsigned long start_time = millis();
+  while (true)
+  {
+    if (ms > 0 && millis() - start_time >= ms)
+    {
+      break;
+    }
+    // 計算偏差值
+    int error = 0;
 
-//     while (true)
-//     {
-//         if (ms > 0 && millis() - start_time >= ms)
-//         {
-//             break;
-//         }
+    if (useFiveIR)
+    {
+      if (IR_LL_read() == 0 && IR_L_read() == 0 && IR_M_read() == 1 && IR_R_read() == 0 && IR_RR_read() == 0)
+      {
+        error = 0;
+      }
+      else if (IR_LL_read() == 0 && IR_L_read() == 1 && IR_M_read() == 1 && IR_R_read() == 0 && IR_RR_read() == 0)
+      {
+        error = -0.4;
+      }
+      else if (IR_LL_read() == 0 && IR_L_read() == 0 && IR_M_read() == 1 && IR_R_read() == 1 && IR_RR_read() == 0)
+      {
+        error = 0.4;
+      }
+      else if (IR_LL_read() == 0 && IR_L_read() == 1 && IR_M_read() == 0 && IR_R_read() == 0 && IR_RR_read() == 0)
+      {
+        error = -1.9;
+      }
+      else if (IR_LL_read() == 0 && IR_L_read() == 0 && IR_M_read() == 0 && IR_R_read() == 1 && IR_RR_read() == 0)
+      {
+        error = 1.9;
+      }
+      else if (IR_LL_read() == 1 && IR_L_read() == 1 && IR_M_read() == 0 && IR_R_read() == 0 && IR_RR_read() == 0)
+      {
+        error = -2.8;
+      }
+      else if (IR_LL_read() == 0 && IR_L_read() == 0 && IR_M_read() == 0 && IR_R_read() == 1 && IR_RR_read() == 1)
+      {
+        error = 2.8;
+      }
+      else if (IR_LL_read() == 1 && IR_L_read() == 0 && IR_M_read() == 0 && IR_R_read() == 0 && IR_RR_read() == 0)
+      {
+        error = -4.4;
+      }
+      else if (IR_LL_read() == 0 && IR_L_read() == 0 && IR_M_read() == 0 && IR_R_read() == 0 && IR_RR_read() == 1)
+      {
+        error = 4.4;
+      }
+      else
+      {
+        error = lastError;
+      }
+    }
+    else
+    {
+      if (IR_L_read() == 0 && IR_M_read() == 1 && IR_R_read() == 0)
+      {
+        error = 0;
+      }
+      else if (IR_L_read() == 1 && IR_M_read() == 1 && IR_R_read() == 0)
+      {
+        error = -0.4;
+      }
+      else if (IR_L_read() == 0 && IR_M_read() == 1 && IR_R_read() == 1)
+      {
+        error = 0.4;
+      }
+      else if (IR_L_read() == 1 && IR_M_read() == 0 && IR_R_read() == 0)
+      {
+        error = -1.9;
+      }
+      else if (IR_L_read() == 0 && IR_M_read() == 0 && IR_R_read() == 1)
+      {
+        error = 1.9;
+      }
+      else
+      {
+        error = lastError;
+      }
+    }
 
-//         IR_update();
+    // 計算積分項
+    integral += error;
 
-//         if (useUltraSonic)
-//         {
-//             ultrasonic();
-//         }
-//         // 計算偏差值
-//         int error = 0;
+    // 計算微分項
+    int derivative = error - lastError;
 
-//         if (useFiveIR)
-//         {
-//             if (IR_LL == 0 && IR_L == 0 && IR_M == 1 && IR_R == 0 && IR_RR == 0)
-//             {
-//                 error = 0;
-//             }
-//             else if (IR_LL == 0 && IR_L == 1 && IR_M == 1 && IR_R == 0 && IR_RR == 0)
-//             {
-//                 error = -0.4;
-//             }
-//             else if (IR_LL == 0 && IR_L == 0 && IR_M == 1 && IR_R == 1 && IR_RR == 0)
-//             {
-//                 error = 0.4;
-//             }
-//             else if (IR_LL == 0 && IR_L == 1 && IR_M == 0 && IR_R == 0 && IR_RR == 0)
-//             {
-//                 error = -1.9;
-//             }
-//             else if (IR_LL == 0 && IR_L == 0 && IR_M == 0 && IR_R == 1 && IR_RR == 0)
-//             {
-//                 error = 1.9;
-//             }
-//             else if (IR_LL == 1 && IR_L == 1 && IR_M == 0 && IR_R == 0 && IR_RR == 0)
-//             {
-//                 error = -2.8;
-//             }
-//             else if (IR_LL == 0 && IR_L == 0 && IR_M == 0 && IR_R == 1 && IR_RR == 1)
-//             {
-//                 error = 2.8;
-//             }
-//             else if (IR_LL == 1 && IR_L == 0 && IR_M == 0 && IR_R == 0 && IR_RR == 0)
-//             {
-//                 error = -4.4;
-//             }
-//             else if (IR_LL == 0 && IR_L == 0 && IR_M == 0 && IR_R == 0 && IR_RR == 1)
-//             {
-//                 error = 4.4;
-//             }
-//             else
-//             {
-//                 error = lastError;
-//             }
-//         }
-//         else
-//         {
-//             if (IR_L == 0 && IR_M == 1 && IR_R == 0)
-//             {
-//                 error = 0;
-//             }
-//             else if (IR_L == 1 && IR_M == 1 && IR_R == 0)
-//             {
-//                 error = -0.4;
-//             }
-//             else if (IR_L == 0 && IR_M == 1 && IR_R == 1)
-//             {
-//                 error = 0.4;
-//             }
-//             else if (IR_L == 1 && IR_M == 0 && IR_R == 0)
-//             {
-//                 error = -1.9;
-//             }
-//             else if (IR_L == 0 && IR_M == 0 && IR_R == 1)
-//             {
-//                 error = 1.9;
-//             }
-//             else
-//             {
-//                 error = lastError;
-//             }
-//         }
+    // 計算調整值
+    int adjustment = Kp * error + Ki * integral + Kd * derivative;
 
-//         // 計算積分項
-//         integral += error;
+    // 計算新的馬達速度
+    int speedL = baseSpeed + adjustment;
+    int speedR = baseSpeed - adjustment;
 
-//         // 計算微分項
-//         int derivative = error - lastError;
+    // 限制速度在最小和最大速度之間
+    speedL = constrain(speedL, minimumSpeed, maximumSpeed);
+    speedR = constrain(speedR, minimumSpeed, maximumSpeed);
 
-//         // 計算調整值
-//         int adjustment = Kp * error + Ki * integral + Kd * derivative;
+    // 設置馬達速度
+    motor(speedL, speedR);
 
-//         // 計算新的馬達速度
-//         int speedL = baseSpeed + adjustment;
-//         int speedR = baseSpeed - adjustment;
+    // 更新上一次的偏差值
+    lastError = error;
 
-//         // 限制速度在最小和最大速度之間
-//         speedL = constrain(speedL, minimumSpeed, maximumSpeed);
-//         speedR = constrain(speedR, minimumSpeed, maximumSpeed);
+    if (ms == 0 && exitCondition())
+    {
+      break;
+    }
+  }
+  return lastError;
+}
+void Padilla_right(int baseSpeed, int turnSpeedL, int turnSpeedR, float Kp, float Kd, bool useStop)
+{
+  Padilla_trail(false, []()
+                { return (IR_RR_read() == 1); }, Kp, Kd, 0, baseSpeed, 0, 0);
+  while (IR_RR_read() == 1) // RR == 1 時直走（直到RR變0）
+  {
+    motor(baseSpeed, baseSpeed);
+  }
+  if (useStop)
+  {
+    stop();
+  }
+  while (IR_RR_read() == 0) // RR == 0 時轉彎（直到RR變1）
+  {
+    motor(turnSpeedL, turnSpeedR);
+  }
+  while (IR_RR_read() == 1) // RR == 1 時繼續轉（直到RR變0）
+  {
+    motor(turnSpeedL, turnSpeedR);
+  }
+}
 
-//         // 設置馬達速度
-//         motor(speedL, speedR);
-
-//         // 更新上一次的偏差值
-//         lastError = error;
-
-//         if (ms == 0 && exitCondition())
-//         {
-//             break;
-//         }
-//     }
-//     return lastError;
-// }
+void Padilla_left(int baseSpeed, int turnSpeedL, int turnSpeedR, float Kp, float Kd, bool useStop)
+{
+  Padilla_trail(false, []()
+                { return (IR_LL_read() == 1); }, Kp, Kd, 0, baseSpeed, 0, 0);
+  while (IR_LL_read() == 1) // LL == 1 時直走（直到LL變0）
+  {
+    motor(baseSpeed, baseSpeed);
+  }
+  if (useStop)
+  {
+    stop();
+  }
+  while (IR_LL_read() == 0) // LL == 0 時轉彎（直到LL變1）
+  {
+    motor(turnSpeedL, turnSpeedR);
+  }
+  while (IR_LL_read() == 1) // LL == 1 時繼續轉（直到LL變0）
+  {
+    motor(turnSpeedL, turnSpeedR);
+  }
+}
 //!---------from aerc2-------------
 // --- 伺服馬達控制 ---
 void arm_up()
@@ -570,31 +564,159 @@ void setup()
   // TODO: 初始化完成後，可呼叫停止函式確保馬達不會亂轉
 
   //--------------------------程式開始-----------------------------
-  forward();
-  delay(250);
-  while (!(IR_L_read() == 1 && IR_M_read() == 1 && IR_R_read() == 1))
-  {
-    forward();
-  }
-  delay(100); // 抵達第一個路口
-  while (IR_LL_read() == 1)
-  {
-    forward();
-  } // 稍微前進
-  motor(-250, -200);
-  delay(100); // 停止
-  while (IR_LL_read() == 0)
+  int error = 0;
+
+  Padilla_trail(true, []()
+                { return (IR_M_read() == 1 && IR_R_read() == 1 && IR_L_read() == 1); }, 30, 0, 0, 100, 0, error);
+  delay(100);
+  Padilla_trail(false, []()
+                { return (IR_L_read() == 1 && IR_M_read() == 1 && IR_R_read() == 1); }, 70, 100, 0, 100, 0, error);
+  stop();
+  delay(100);
+  while (!(IR_LL_read() == 1))
   {
     b_Left();
-  } // 左轉看物體
-  while (IR_RR_read() == 0)
+  }
+  motor(50, -100);
+  delay(50);
+  stop();
+  delay(1000);
+  // Padilla_trail(true, []()
+  //               { return (IR_M_read() == 0 && IR_R_read() == 0 && IR_L_read() == 0); }, 30, 0, 0, 100, 0, error);
+  stop();
+  b_Right();
+  delay(100);
+  while (!(IR_RR_read() == 1))
   {
     b_Right();
-  } // 右轉回到循跡線上
-  motor(-50, 0);
+  }
+  motor(-100, 50);
+  delay(50);
+  stop();
+  // Padilla_trail(false, []()
+  //               { return (IR_L_read() == 1 && IR_M_read() == 1 && IR_R_read() == 1); }, 70, 100, 0, 100, 0, error);
+  Padilla_right(200, 0, -100, 80, 30, true);
+  Padilla_trail(true, []()
+                { return (IR_M_read() == 1 && IR_R_read() == 1 && IR_L_read() == 1); }, 30, 0, 0, 50, 0, error);
+  stop();
+  delay(1000);
+  b_Right();
   delay(200);
-  stop(); // 微調位置停止
+  while (!(IR_RR_read() == 1))
+  {
+    b_Right();
+  }
+  motor(-150, 50);
+  delay(200);
+  stop();
+  delay(200);
+  Padilla_trail(false, []()
+                { return (IR_L_read() == 1 && IR_M_read() == 1 && IR_R_read() == 1); }, 70, 100, 0, 100, 0, error);
+  stop();
+  delay(100);
+  while (!(IR_RR_read() == 1))
+  {
+    b_Left();
+  }
+  while (!(IR_L_read() == 1))
+  {
+    motor(-120, 0);
+  }
+  Padilla_trail(true, []()
+                { return (false); }, 20, 0, 0, 40, 500, error);
+  Padilla_trail(true, []()
+                { return (IR_M_read() == 1 && IR_R_read() == 1 && IR_L_read() == 1); }, 30, 0, 0, 150, 0, error);
+  delay(100);
+  Padilla_trail(false, []()
+                { return (IR_L_read() == 1 && IR_M_read() == 1 && IR_R_read() == 1); }, 70, 0, 0, 100, 0, error);
+  motor(-255, -255);
+  delay(250);
+  stop();
+  delay(1000);
+  //! 爪子放下
+  backward();
+  delay(500);
+  stop();
+  delay(500);
+  while (!(IR_LL_read() == 1))
+  {
+    b_Left();
+  }
+  motor(50, -100);
+  delay(50);
+  stop();
+  delay(100);
 
+  // delay(100);
+  // Padilla_trail(true, []()
+  //               { return (IR_M_read() == 1 && IR_R_read() == 1 && IR_L_read() == 1); }, 30, 0, 0, 100, 0, error);
+  // stop();
+  // delay(200);
+  // b_Left();
+  // delay(300);
+  // while (!(IR_LL_read() == 1))
+  // {
+  //   b_Left();
+  // }
+  // motor(50, -100);
+  // delay(50);
+  // stop();
+  // delay(100);
+  // Padilla_trail(false, []()
+  //               { return (IR_L_read() == 1 && IR_M_read() == 1 && IR_R_read() == 1); }, 70, 100, 0, 100, 0, error);
+  // Padilla_left(200, -100, 50, 80, 30, true);
+  // Padilla_trail(true, []()
+  //               { return (IR_M_read() == 1 && IR_R_read() == 1 && IR_L_read() == 1); }, 30, 0, 0, 100, 0, error);
+  stop();
+  //!--------------------------------------------------------------
+  // b_Left();
+  // delay(500);
+  // Padilla_right(200, -100, 50, 80, 30, true);
+
+  // Padilla_trail(true, []()
+  //               { return (IR_M_read() == 0 && IR_R_read() == 0 && IR_L_read() == 0); }, 30, 0, 0, 100, 0, error);
+  // //!----請加入爪子功能----
+  // stop();
+  // delay(50);
+  // m_Right();
+  // delay(100);
+  // Padilla_right(100, 100, -100, 30, 0, true);
+  // Padilla_left(200, -100, 50, 80, 30, true);
+  // Padilla_left(200, -100, 50, 80, 30, true);
+  // Padilla_trail(true, []()
+  //               { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, 90, 35, 0, 100, 0, error);
+  // stop();
+  // delay(50);
+
+  // error = Padilla_trail(false, []()
+  //                       { return (IR_L_read() == 1 && IR_M_read() == 1 && IR_R_read() == 1); }, 70, 100, 0, 200, 0, error);
+  // error = Padilla_trail(false, []()
+  //                       { return (false); }, 70, 100, 0, 200, 100, error);
+  // // 抵達第一個路口
+  // error = Padilla_trail(true, []()
+  //                       { return (IR_LL_read() == 1); }, 70, 100, 0, 200, 0, error);
+  // 稍微前進
+  // motor(-250, -200);
+  // delay(10); // 停止
+
+  // // while (IR_LL_read() == 0)
+  // // {
+  // //   b_Left();
+  // // } // 左轉看物體
+  // Padilla_left(200, -100, 50, 80, 30, true, );
+  // delay(300);
+  // // while (IR_RR_read() == 0)
+  // // {
+  // //   b_Right();
+  // // } // 右轉回到循跡線上
+  // // motor(-50, 0);
+  // // delay(200);
+  // // stop(); // 微調位置停止
+  // error = Padilla_trail(false, []()
+  //                       { return (IR_L_read() == 1 && IR_M_read() == 1 && IR_R_read() == 1); }, 70, 100, 0, 200, 0, 0);
+
+  // motor(-50, -50);
+  // delay(100);
   //--------------------------------------------------------------
 }
 
