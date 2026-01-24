@@ -22,10 +22,13 @@ Servo claw; // 爪子伺服馬達
 #define CLAW_PIN 15 // 爪子伺服馬達腳位
 
 // ===== 伺服馬達角度設定 =====
-#define ARM_UP 90    // 手臂升起角度
-#define ARM_DOWN 15  // 手臂下降角度
-#define CLAW_OPEN 90 // 爪子開啟角度
-#define CLAW_CLOSE 0 // 爪子關閉角度
+#define ARM_UP 90       // 手臂升起角度
+#define ARM_DOWN 40     // 手臂下降角度
+#define CLAW_OPEN 150   // 爪子開啟角度
+#define CLAW_CLOSE 45   // 爪子關閉角度
+#define CAMERA_FRONT 90 // 攝影機正前方角度
+#define CAMERA_LEFT 180 // 攝影機左側角度
+#define CAMERA_RIGHT 0  // 攝影機右側角度
 
 // ===== 編碼器腳位定義 =====
 #define LEFT_ENCODER_A 18  // 左編碼器 A 相
@@ -80,10 +83,13 @@ void b_Right();           // 急右轉 (右輪反轉)
 void stop();              // 停止
 
 // --- 伺服馬達控制 ---
-void arm_up();     // 手臂升起
-void arm_down();   // 手臂下降
-void claw_open();  // 爪子開啟
-void claw_close(); // 爪子關閉
+void arm_up();       // 手臂升起
+void arm_down();     // 手臂下降
+void claw_open();    // 爪子開啟
+void claw_close();   // 爪子關閉
+void camera_front(); // 攝影機正前方
+void camera_left();  // 攝影機左側
+void camera_right(); // 攝影機右側
 
 void pick_up();
 void put_down();
@@ -168,10 +174,16 @@ void b_Right()
 {
   motor(60, -90);
 }
+void big_stop()
+{
+  motor(-255, -200);
+  delay(10);
+  motor(0, 0);
+  leftEncoder.clearCount();
+  rightEncoder.clearCount();
+}
 void stop()
 {
-  motor(-255, -255);
-  delay(10);
   motor(0, 0);
   leftEncoder.clearCount();
   rightEncoder.clearCount();
@@ -500,10 +512,6 @@ void claw_close()
 
 void pick_up()
 {
-  claw_open();
-  delay(200);
-  arm_down();
-  delay(200);
   claw_close();
   delay(200);
   arm_up();
@@ -512,6 +520,8 @@ void pick_up()
 
 void put_down()
 {
+  arm_down();
+  delay(200);
   claw_open();
   delay(200);
 }
@@ -564,160 +574,76 @@ void setup()
   // TODO: 初始化完成後，可呼叫停止函式確保馬達不會亂轉
 
   //--------------------------程式開始-----------------------------
-  int error = 0;
+  claw_open();
+  delay(200);
+  arm_down();
+  delay(200);
 
-  Padilla_trail(true, []()
-                { return (IR_M_read() == 1 && IR_R_read() == 1 && IR_L_read() == 1); }, 30, 0, 0, 100, 0, error);
-  delay(100);
+  int error = 0;
+  forward();
+  delay(200);
   Padilla_trail(false, []()
                 { return (IR_L_read() == 1 && IR_M_read() == 1 && IR_R_read() == 1); }, 70, 100, 0, 100, 0, error);
-  stop();
+  big_stop();
   delay(100);
-  while (!(IR_LL_read() == 1))
-  {
-    b_Left();
-  }
-  motor(50, -100);
-  delay(50);
-  stop();
-  delay(1000);
-  // Padilla_trail(true, []()
-  //               { return (IR_M_read() == 0 && IR_R_read() == 0 && IR_L_read() == 0); }, 30, 0, 0, 100, 0, error);
-  stop();
-  b_Right();
-  delay(100);
-  while (!(IR_RR_read() == 1))
-  {
-    b_Right();
-  }
-  motor(-100, 50);
-  delay(50);
-  stop();
-  // Padilla_trail(false, []()
-  //               { return (IR_L_read() == 1 && IR_M_read() == 1 && IR_R_read() == 1); }, 70, 100, 0, 100, 0, error);
-  Padilla_right(200, 0, -100, 80, 30, true);
   Padilla_trail(true, []()
                 { return (IR_M_read() == 1 && IR_R_read() == 1 && IR_L_read() == 1); }, 30, 0, 0, 50, 0, error);
-  stop();
-  delay(1000);
+  forward();
+  delay(50);
+  big_stop();
+  delay(100);
   b_Right();
   delay(200);
   while (!(IR_RR_read() == 1))
   {
     b_Right();
   }
-  motor(-150, 50);
-  delay(200);
-  stop();
-  delay(200);
-  Padilla_trail(false, []()
-                { return (IR_L_read() == 1 && IR_M_read() == 1 && IR_R_read() == 1); }, 70, 100, 0, 100, 0, error);
-  stop();
+  while (!(IR_RR_read() == 0))
+  {
+    b_Right();
+  }
+  b_Left();
   delay(100);
+  Padilla_trail(false, []()
+                { return (IR_LL_read() == 1 || IR_RR_read() == 1); }, 30, 0, 0, 50, 0, 0);
+  big_stop();
+  pick_up();
+
+  // //! 抵達右側
+  b_Right();
+  delay(200);
   while (!(IR_RR_read() == 1))
   {
-    b_Left();
+    b_Right();
   }
-  while (!(IR_L_read() == 1))
-  {
-    motor(-120, 0);
-  }
-  Padilla_trail(true, []()
-                { return (false); }, 20, 0, 0, 40, 500, error);
-  Padilla_trail(true, []()
-                { return (IR_M_read() == 1 && IR_R_read() == 1 && IR_L_read() == 1); }, 30, 0, 0, 150, 0, error);
+  b_Left();
   delay(100);
   Padilla_trail(false, []()
-                { return (IR_L_read() == 1 && IR_M_read() == 1 && IR_R_read() == 1); }, 70, 0, 0, 100, 0, error);
-  motor(-255, -255);
-  delay(250);
-  stop();
-  delay(1000);
-  //! 爪子放下
-  backward();
-  delay(500);
-  stop();
-  delay(500);
+                { return (IR_L_read() == 1 && IR_M_read() == 1 && IR_R_read() == 1); }, 70, 100, 0, 100, 0, 0);
+  forward();
+  delay(50);
+  b_Left();
+  delay(200);
   while (!(IR_LL_read() == 1))
   {
     b_Left();
   }
-  motor(50, -100);
-  delay(50);
-  stop();
+  while (!(IR_LL_read() == 0))
+  {
+    b_Left();
+  }
+  b_Right();
   delay(100);
-
-  // delay(100);
-  // Padilla_trail(true, []()
-  //               { return (IR_M_read() == 1 && IR_R_read() == 1 && IR_L_read() == 1); }, 30, 0, 0, 100, 0, error);
-  // stop();
-  // delay(200);
-  // b_Left();
-  // delay(300);
-  // while (!(IR_LL_read() == 1))
-  // {
-  //   b_Left();
-  // }
-  // motor(50, -100);
-  // delay(50);
-  // stop();
-  // delay(100);
-  // Padilla_trail(false, []()
-  //               { return (IR_L_read() == 1 && IR_M_read() == 1 && IR_R_read() == 1); }, 70, 100, 0, 100, 0, error);
-  // Padilla_left(200, -100, 50, 80, 30, true);
-  // Padilla_trail(true, []()
-  //               { return (IR_M_read() == 1 && IR_R_read() == 1 && IR_L_read() == 1); }, 30, 0, 0, 100, 0, error);
-  stop();
-  //!--------------------------------------------------------------
-  // b_Left();
-  // delay(500);
-  // Padilla_right(200, -100, 50, 80, 30, true);
-
-  // Padilla_trail(true, []()
-  //               { return (IR_M_read() == 0 && IR_R_read() == 0 && IR_L_read() == 0); }, 30, 0, 0, 100, 0, error);
-  // //!----請加入爪子功能----
-  // stop();
-  // delay(50);
-  // m_Right();
-  // delay(100);
-  // Padilla_right(100, 100, -100, 30, 0, true);
-  // Padilla_left(200, -100, 50, 80, 30, true);
-  // Padilla_left(200, -100, 50, 80, 30, true);
-  // Padilla_trail(true, []()
-  //               { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, 90, 35, 0, 100, 0, error);
-  // stop();
-  // delay(50);
-
-  // error = Padilla_trail(false, []()
-  //                       { return (IR_L_read() == 1 && IR_M_read() == 1 && IR_R_read() == 1); }, 70, 100, 0, 200, 0, error);
-  // error = Padilla_trail(false, []()
-  //                       { return (false); }, 70, 100, 0, 200, 100, error);
-  // // 抵達第一個路口
-  // error = Padilla_trail(true, []()
-  //                       { return (IR_LL_read() == 1); }, 70, 100, 0, 200, 0, error);
-  // 稍微前進
-  // motor(-250, -200);
-  // delay(10); // 停止
-
-  // // while (IR_LL_read() == 0)
-  // // {
-  // //   b_Left();
-  // // } // 左轉看物體
-  // Padilla_left(200, -100, 50, 80, 30, true, );
-  // delay(300);
-  // // while (IR_RR_read() == 0)
-  // // {
-  // //   b_Right();
-  // // } // 右轉回到循跡線上
-  // // motor(-50, 0);
-  // // delay(200);
-  // // stop(); // 微調位置停止
-  // error = Padilla_trail(false, []()
-  //                       { return (IR_L_read() == 1 && IR_M_read() == 1 && IR_R_read() == 1); }, 70, 100, 0, 200, 0, 0);
-
-  // motor(-50, -50);
-  // delay(100);
+  error = Padilla_trail(false, []()
+                        { return (IR_M_read() == 1 && IR_R_read() == 1 && IR_L_read() == 1); }, 30, 0, 0, 50, 0, 0);
+  error = Padilla_trail(false, []()
+                        { return (false); }, 30, 0, 0, 50, 200, error);
+  Padilla_trail(false, []()
+                { return (IR_L_read() == 1 && IR_M_read() == 1 && IR_R_read() == 1); }, 70, 100, 0, 100, 0, error);
+  big_stop();
+  put_down();
   //--------------------------------------------------------------
+  stop();
 }
 
 void loop()
