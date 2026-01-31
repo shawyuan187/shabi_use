@@ -573,7 +573,7 @@ void setup()
 
   // TODO: 初始化完成後，可呼叫停止函式確保馬達不會亂轉
 
-  //--------------------------程式開始-----------------------------
+  //======================================================================程式開始==============================================================
   claw_open();
   delay(200);
   arm_down();
@@ -642,6 +642,77 @@ void setup()
                 { return (IR_L_read() == 1 && IR_M_read() == 1 && IR_R_read() == 1); }, 70, 100, 0, 100, 0, error);
   big_stop();
   put_down();
+
+  // //! ====== 中側程式 ======
+  backward();
+  delay(400);
+  b_Left();
+  delay(300);
+  Padilla_left(100, -50, 90, 70, 100, true);
+  arm_up();
+
+
+  error = 0;
+
+  Padilla_trail(false, []()
+                { return (IR_L_read() == 1 && IR_M_read() == 1 && IR_R_read() == 1); }, 70, 100, 0, 100, 0, error);
+
+  b_Left();
+  delay(200);
+  while (!(IR_LL_read() == 1))
+  {
+    b_Left();
+  }
+  while (!(IR_LL_read() == 0))
+  {
+    b_Left();
+  }
+  b_Right();
+  delay(100);
+  Padilla_trail(false, []()
+                { return (IR_LL_read() == 1 || IR_RR_read() == 1); }, 30, 0, 0, 50, 0, 0);
+  forward();
+  delay(50);
+  
+  Padilla_trail(false, []()
+                { return (IR_LL_read() == 1 || IR_RR_read() == 1); }, 30, 0, 0, 50, 0, 0);
+  big_stop();
+  pick_up();
+
+  // //! 抵達中側
+  // b_Left();
+  // delay(200);
+  // while (!(IR_LL_read() == 1))
+  // {
+  //   b_Left();
+  // }
+  // b_Right();
+  // delay(100);
+  // Padilla_trail(false, []()
+  //               { return (IR_L_read() == 1 && IR_M_read() == 1 && IR_R_read() == 1); }, 70, 100, 0, 100, 0, 0);
+  // forward();
+  // delay(50);
+  // b_Right();
+  // delay(200);
+  // while (!(IR_RR_read() == 1))
+  // {
+  //   b_Right();
+  // }
+  // while (!(IR_RR_read() == 0))
+  // {
+  //   b_Right();
+  // }
+  // b_Left();
+  // delay(100);
+  // error = Padilla_trail(false, []()
+  //                       { return (IR_M_read() == 1 && IR_R_read() == 1 && IR_L_read() == 1); }, 30, 0, 0, 50, 0, 0);
+  // error = Padilla_trail(false, []()
+  //                       { return (false); }, 30, 0, 0, 50, 200, error);
+  // Padilla_trail(false, []()
+  //               { return (IR_L_read() == 1 && IR_M_read() == 1 && IR_R_read() == 1); }, 70, 100, 0, 100, 0, error);
+  // big_stop();
+  // put_down();
+  
   //--------------------------------------------------------------
   stop();
 }
