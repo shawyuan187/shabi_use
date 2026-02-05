@@ -642,8 +642,6 @@ void setup()
                 { return (IR_L_read() == 1 && IR_M_read() == 1 && IR_R_read() == 1 && IR_RR_read() == 1 && IR_LL_read() == 1); }, 70, 100, 0, 100, 0, error);
   big_stop();
   put_down();
-
-  // //! ====== 中側程式 ======
   backward();
   delay(100);
   b_Left();
@@ -657,6 +655,8 @@ void setup()
   delay(100);
   stop();
   delay(50);
+
+  // //! ====== 中側程式 ======
   // error = 0;
   //   Padilla_trail(false, []()
   //               { return (IR_L_read() == 1 &&IR_M_read() == 1 && IR_R_read() == 1&& IR_RR_read() == 1 && IR_LL_read() == 1); }, 30, 0, 0, 50, 0, 0);
