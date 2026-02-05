@@ -148,35 +148,38 @@ int IR_RR_read()
 }
 
 // --- 馬達控制 ---
-//!---------------------左側馬達力量較小(35左右),待調-----------------------
+// // !---------------------左側馬達力量較小(35左右),待調-----------------------
+//?=-------------------------馬達特殊------------------------------
+//!--統一註解代表右邊
+// TODO:因特殊情況，左馬達統一放慢20
 
 void forward()
 {
-  motor(250, 215);
+  motor(230, 250); // 馬達速度215->250
 }
 void backward()
 {
-  motor(-150, -200);
+  motor(-130, -150); // 馬達速度-120->-150
 }
 void m_Left()
 {
-  motor(0, 200);
+  motor(-20, 200);
 }
 void m_Right()
 {
-  motor(200, 0);
+  motor(200, 20);
 }
 void b_Left()
 {
-  motor(-110, 50);
+  motor(-110, 60);
 }
 void b_Right()
 {
-  motor(60, -90);
+  motor(60, -110); // 馬達速度-100->-110
 }
 void big_stop()
 {
-  motor(-255, -200);
+  motor(-255, -255); // 馬達速度-200->-255
   delay(10);
   motor(0, 0);
   leftEncoder.clearCount();
@@ -521,7 +524,7 @@ void pick_up()
 void put_down()
 {
   arm_down();
-  delay(200);
+  delay(300);
   claw_open();
   delay(200);
 }
@@ -582,16 +585,12 @@ void setup()
   float error = 0.0f;
   forward();
   delay(200);
-  Padilla_trail(false, []()
-                { return (IR_L_read() == 1 && IR_M_read() == 1 && IR_R_read() == 1 && IR_RR_read() == 1 && IR_LL_read() == 1); }, 70, 100, 0, 250, 0, error);
-  big_stop();
-  delay(100);
   Padilla_trail(true, []()
-                { return (IR_M_read() == 1 && IR_R_read() == 1 && IR_L_read() == 1 && IR_RR_read() == 1 && IR_LL_read() == 1); }, 30, 0, 0, 50, 0, error);
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 70, 50, 0, 250, 0, error);
   forward();
-  delay(10);
-  big_stop();
   delay(100);
+  Padilla_trail(false, []()
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 50, 0, 0, 50, 0, error);
   b_Right();
   delay(180);
   while (!(IR_RR_read() == 1))
@@ -604,12 +603,13 @@ void setup()
   }
   b_Left();
   delay(100);
+
   Padilla_trail(false, []()
-                { return (IR_L_read() == 1 && IR_R_read() == 1); }, 30, 0, 0, 50, 0, 0);
+                { return (IR_R_read() == 1 && IR_M_read() == 1 && IR_L_read() == 1); }, 35, 0, 0, 50, 0, error);
   big_stop();
   pick_up();
 
-  // //! 抵達右側
+  // //! 抵達右側已取貨，開始迴轉
   b_Right();
   delay(200);
   while (!(IR_RR_read() == 1))
@@ -618,10 +618,8 @@ void setup()
   }
   b_Left();
   delay(100);
-  Padilla_trail(false, []()
-                { return (IR_L_read() == 1 && IR_M_read() == 1 && IR_R_read() == 1); }, 70, 100, 0, 100, 0, 0);
-  forward();
-  delay(50);
+  Padilla_trail(true, []()
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 70, 100, 0, 250, 0, error);
   b_Left();
   delay(200);
   while (!(IR_LL_read() == 1))
@@ -634,52 +632,59 @@ void setup()
   }
   b_Right();
   delay(100);
-  error = Padilla_trail(false, []()
-                        { return (IR_M_read() == 1 && IR_R_read() == 1 && IR_L_read() == 1 && IR_RR_read() == 1 && IR_LL_read() == 1); }, 30, 0, 0, 50, 0, 0);
-  error = Padilla_trail(false, []()
-                        { return (false); }, 30, 0, 0, 250, 200, error);
   Padilla_trail(false, []()
-                { return (IR_L_read() == 1 && IR_M_read() == 1 && IR_R_read() == 1 && IR_RR_read() == 1 && IR_LL_read() == 1); }, 70, 100, 0, 100, 0, error);
-  big_stop();
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 30, 0, 0, 50, 0, error);
+  forward();
+  delay(100);
+  Padilla_trail(false, []()
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 35, 0, 0, 70, 0, error);
+  stop();
+  delay(100);
   put_down();
   backward();
   delay(100);
-  b_Left();
-  delay(300);
-  while (!(IR_LL_read() == 1))
-  {
-    b_Left();
-  }
-
   b_Right();
-  delay(100);
-  stop();
-  delay(50);
+  delay(300);
+  while (!(IR_RR_read() == 1))
+  {
+    b_Right();
+  }
+  b_Left();
+  delay(250); // TODO:這裡有改100->250
 
   // //! ====== 中側程式 ======
-  // error = 0;
-  //   Padilla_trail(false, []()
-  //               { return (IR_L_read() == 1 &&IR_M_read() == 1 && IR_R_read() == 1&& IR_RR_read() == 1 && IR_LL_read() == 1); }, 30, 0, 0, 50, 0, 0);
-  // forward();
-  // delay(100);
-  // Padilla_trail(false, []()
-  //               { return (IR_L_read() == 1 && IR_M_read() == 1 && IR_R_read() == 1&& IR_RR_read() == 1 && IR_LL_read() == 1); }, 70, 90, 0, 250, 0, error);
+  Padilla_trail(false, []()
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 70, 50, 0, 250, 0, error);
+  forward();
+  delay(100);
+  Padilla_trail(false, []()
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 70, 90, 0, 250, 0, error);
+  forward();
+  delay(70);
+  Padilla_trail(false, []()
+                { return (IR_R_read() == 1 && IR_M_read() == 1 && IR_L_read() == 1); }, 30, 0, 0, 50, 0, error);
+  big_stop();
+  pick_up();
+  // //!  抵達中側已取貨，開始迴轉
+  b_Right();
+  delay(200);
+  while (!(IR_RR_read() == 1))
+  {
+    b_Right();
+  }
+  b_Left();
+  delay(100);
+  Padilla_trail(false, []()
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 70, 100, 0, 250, 0, error);
+  forward();
+  delay(100);
+  Padilla_trail(false, []()
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 70, 90, 0, 250, 0, error);
+  forward();
+  delay(20);
+  Padilla_trail(false, []()
+                { return (IR_R_read() == 1 && IR_M_read() == 1 && IR_L_read() == 1); }, 30, 0, 0, 50, 0, error);
 
-  // forward();
-  // delay(50);
-  //   Padilla_trail(false, []()
-  //               { return (IR_L_read() == 1 && IR_R_read() == 1&& IR_RR_read() == 1 && IR_LL_read() == 1); }, 50, 20, 0, 50, 0, 0);
-  // big_stop();
-  // pick_up();
-  // b_Right();
-  // delay(200);
-  // while (!(IR_RR_read() == 1))
-  // {
-  //   b_Right();
-  // }
-  // b_Left();
-  // delay(100);
-  // // //! 抵達中側
   // Padilla_trail(false, []()
   //               { return (IR_L_read() == 1 && IR_M_read() == 1 && IR_R_read() == 1&& IR_RR_read() == 1 && IR_LL_read() == 1); }, 70, 100, 0, 100, 0, error);
   // forward();
