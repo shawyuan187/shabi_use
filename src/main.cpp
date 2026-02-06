@@ -834,7 +834,7 @@ void setup()
   turn_turn(1, 450, 800);
   // //! ====== 中側程式 ======
   Padilla_trail(false, []()
-                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 70, 50, 0, 50, 0, error);
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 30, 0, 0, 50, 0, error);
   forward();
   delay(120);
   Padilla_trail(false, []()
@@ -848,7 +848,7 @@ void setup()
   // //!  抵達中側已取貨，開始迴轉
   turn_turn(1, 450, 800);
   Padilla_trail(false, []()
-                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 70, 50, 0, 50, 0, error);
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 30, 0, 0, 50, 0, error);
   forward();
   delay(100);
   Padilla_trail(false, []()
