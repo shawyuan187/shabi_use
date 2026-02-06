@@ -798,15 +798,6 @@ void setup()
   pick_up();
 
   // //! 抵達右側已取貨，開始迴轉
-  // b_Right();
-  // delay(200);
-  // while (!(IR_RR_read() == 1))
-  // {
-  //   b_Right();
-  // }
-  // b_Left();
-  // delay(100);
-
   turn_turn(1, 450, 800);
   Padilla_trail(true, []()
                 { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 70, 100, 0, 250, 0, error);
@@ -863,82 +854,55 @@ void setup()
   put_down();
 
   // //! ====== 左側程式 ======
-  // arm_up();
-  // b_Left();
-  // delay(300);
-  // while (!(IR_LL_read() == 1))
-  // {
-  //   b_Left();
-  // }
-
-  // b_Right();
-  // delay(300);
-  // stop();
-  // delay(50);
-  // arm_down();
-  // error = 0;
+  arm_up();
+  turn_turn(1, 450, 800);
+  Padilla_trail(true, []()
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 70, 50, 0, 250, 0, error);
+  forward();
+  delay(100);
+  Padilla_trail(false, []()
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 50, 0, 0, 50, 0, error);
+  stop();
+  arm_down();
+  b_Left();
+  delay(200);
+  while (!(IR_LL_read() == 1))
+  {
+    b_Left();
+  }
+  while (!(IR_LL_read() == 0))
+  {
+    b_Left();
+  }
+  b_Right();
+  delay(100);
+  Padilla_trail(false, []()
+                { return (IR_L_read() == 1 && IR_R_read() == 1); }, 30, 0, 0, 50, 0, 0);
+  big_stop();
+  pick_up();
+  turn_turn(1, 450, 800);
+  Padilla_trail(true, []()
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 70, 100, 0, 250, 0, error);
+  b_Right();
+  delay(200);
+  while (!(IR_RR_read() == 1))
+  {
+    b_Right();
+  }
+  while (!(IR_RR_read() == 0))
+  {
+    b_Right();
+  }
+  b_Left();
+  delay(100);
+  Padilla_trail(false, []()
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 30, 0, 0, 50, 0, error);
+  forward();
+  delay(100);
   // Padilla_trail(false, []()
-  //               { return (IR_L_read() == 1 && IR_M_read() == 1 && IR_R_read() == 1 && IR_RR_read() == 1 && IR_LL_read() == 1); }, 80, 50, 0, 60, 0, 0);
-  // forward();
-  // delay(100);
-  // Padilla_trail(false, []()
-  //               { return (IR_L_read() == 1 && IR_M_read() == 1 && IR_R_read() == 1); }, 70, 100, 0, 100, 0, error);
-  // // forward();
-  // // delay(50);
-  // // Padilla_trail(false, []()
-  // //               { return (IR_L_read() == 1 && IR_M_read() == 1 && IR_R_read() == 1); }, 70, 100, 0, 100, 0, error);
-
-  // big_stop();
-  // delay(100);
-  // b_Left();
-  // delay(200);
-  // while (!(IR_LL_read() == 1))
-  // {
-  //   b_Left();
-  // }
-  // while (!(IR_LL_read() == 0))
-  // {
-  //   b_Left();
-  // }
-  // b_Right();
-  // delay(100);
-  // Padilla_trail(false, []()
-  //               { return (IR_L_read() == 1 && IR_R_read() == 1); }, 30, 0, 0, 50, 0, 0);
-  // big_stop();
-  // pick_up();
-
-  // b_Right();
-  // delay(200);
-  // while (!(IR_RR_read() == 1))
-  // {
-  //   b_Right();
-  // }
-  // b_Left();
-  // delay(100);
-  // Padilla_trail(false, []()
-  //               { return (IR_L_read() == 1 && IR_M_read() == 1 && IR_R_read() == 1 && IR_RR_read() == 1 && IR_LL_read() == 1); }, 70, 100, 0, 100, 0, 0);
-  // forward();
-  // delay(50);
-  // b_Right();
-  // delay(200);
-  // while (!(IR_RR_read() == 1))
-  // {
-  //   b_Right();
-  // }
-  // while (!(IR_RR_read() == 0))
-  // {
-  //   b_Right();
-  // }
-  // b_Left();
-  // delay(100);
-  // error = Padilla_trail(false, []()
-  //                       { return (IR_M_read() == 1 && IR_R_read() == 1 && IR_L_read() == 1 && IR_RR_read() == 1 && IR_LL_read() == 1); }, 30, 0, 0, 50, 0, 0);
-  // error = Padilla_trail(false, []()
-  //                       { return (false); }, 30, 0, 0, 50, 200, error);
-  // // Padilla_trail(false, []()
-  // //               { return (IR_L_read() == 1 && IR_M_read() == 1 && IR_R_read() == 1); }, 70, 100, 0, 100, 0, error);
-  // big_stop();
-  // claw_open();
+  //               { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 35, 0, 0, 70, 0, error);
+  big_stop();
+  claw_open();
   //--------------------------------------------------------------
   stop();
 }
