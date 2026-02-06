@@ -73,14 +73,15 @@ int IR_R_read();  // 讀取右側紅外線感測器
 int IR_RR_read(); // 讀取最右側紅外線感測器
 
 // --- 馬達控制 ---
-void motor(int L, int R); // 馬達控制 (L:左輪速度, R:右輪速度, 正值前進/負值後退)
-void forward();           // 前進
-void backward();          // 後退
-void m_Left();            // 左轉 (左輪停止)
-void m_Right();           // 右轉 (右輪停止)
-void b_Left();            // 急左轉 (左輪反轉)
-void b_Right();           // 急右轉 (右輪反轉)
-void stop();              // 停止
+void motor(int L, int R);                                                               // 馬達控制 (L:左輪速度, R:右輪速度, 正值前進/負值後退)
+void forward();                                                                         // 前進
+void backward();                                                                        // 後退
+void m_Left();                                                                          // 左轉 (左輪停止)
+void m_Right();                                                                         // 右轉 (右輪停止)
+void b_Left();                                                                          // 急左轉 (左輪反轉)
+void b_Right();                                                                         // 急右轉 (右輪反轉)
+void stop();                                                                            // 停止
+void turn_turn(int direction = 1, int delayTime = 450, unsigned long confirmMs = 1500); // 迴轉 (direction: 0=左, 1=右)
 
 // --- 伺服馬達控制 ---
 void arm_up();       // 手臂升起
@@ -191,6 +192,7 @@ void stop()
   leftEncoder.clearCount();
   rightEncoder.clearCount();
 }
+
 void motor(int L, int R)
 {
   if (L > 0)
@@ -344,6 +346,7 @@ float Padilla_trail(bool useFiveIR, bool (*exitCondition)(), float Kp, float Kd,
     {
       break;
     }
+
     // 計算偏差值
     float error = 0.0f;
 
@@ -492,6 +495,191 @@ void Padilla_left(int baseSpeed, int turnSpeedL, int turnSpeedR, float Kp, float
   }
 }
 //!---------from aerc2-------------
+
+// ===== PID 原地旋轉對準函式 =====
+// 功能：在原地旋轉，使用PID控制使車頭對準黑線中心
+// 參數說明：
+//   baseRotateSpeed: 基礎旋轉速度 (0~255)
+//   Kp, Kd, Ki: PID參數
+//   direction: 旋轉方向 (1=順時針右轉, -1=逆時針左轉)
+//   ms: 旋轉時間限制，0表示靠exitCondition判斷
+//   lastError: 上一次的偏差值
+//   exitCondition: 退出條件函式指標
+// 回傳值：最後一次的偏差值
+
+float PID_spin(int baseRotateSpeed, float Kp, float Kd, float Ki, int direction,
+               unsigned long ms, float lastError, bool (*exitCondition)())
+{
+  const int minimumSpeed = -255; // 最小速度
+  const int maximumSpeed = 255;  // 最大速度
+  float integral = 0.0f;         // 積分項
+
+  unsigned long start_time = millis();
+
+  while (true)
+  {
+    // 時間限制判斷
+    if (ms > 0 && millis() - start_time >= ms)
+    {
+      break;
+    }
+
+    if (exitCondition && exitCondition())
+    {
+      if (ms == 0)
+      {
+        break;
+      }
+      stop();
+      integral = 0.0f;
+      lastError = 0.0f;
+      continue;
+    }
+
+    // 計算偏差值（基於五個紅外線感測器的組合）
+    float error = 0.0f;
+
+    // 完美中心對齊 - 只有中間感測器看到黑線
+    if (IR_LL_read() == 0 && IR_L_read() == 0 && IR_M_read() == 1 &&
+        IR_R_read() == 0 && IR_RR_read() == 0)
+    {
+      error = 0;
+    }
+    // 略微左偏
+    else if (IR_LL_read() == 0 && IR_L_read() == 1 && IR_M_read() == 1 &&
+             IR_R_read() == 0 && IR_RR_read() == 0)
+    {
+      error = -0.4;
+    }
+    // 略微右偏
+    else if (IR_LL_read() == 0 && IR_L_read() == 0 && IR_M_read() == 1 &&
+             IR_R_read() == 1 && IR_RR_read() == 0)
+    {
+      error = 0.4;
+    }
+    // 左側較強
+    else if (IR_LL_read() == 0 && IR_L_read() == 1 && IR_M_read() == 0 &&
+             IR_R_read() == 0 && IR_RR_read() == 0)
+    {
+      error = -1;
+    }
+    // 右側較強
+    else if (IR_LL_read() == 0 && IR_L_read() == 0 && IR_M_read() == 0 &&
+             IR_R_read() == 1 && IR_RR_read() == 0)
+    {
+      error = 1;
+    }
+    // 最左邊
+    else if (IR_LL_read() == 1 && IR_L_read() == 1 && IR_M_read() == 0 &&
+             IR_R_read() == 0 && IR_RR_read() == 0)
+    {
+      error = -2.8;
+    }
+    // 最右邊
+    else if (IR_LL_read() == 0 && IR_L_read() == 0 && IR_M_read() == 0 &&
+             IR_R_read() == 1 && IR_RR_read() == 1)
+    {
+      error = 2.8;
+    }
+    // 極左邊
+    else if (IR_LL_read() == 1 && IR_L_read() == 0 && IR_M_read() == 0 &&
+             IR_R_read() == 0 && IR_RR_read() == 0)
+    {
+      error = -4.4;
+    }
+    // 極右邊
+    else if (IR_LL_read() == 0 && IR_L_read() == 0 && IR_M_read() == 0 &&
+             IR_R_read() == 0 && IR_RR_read() == 1)
+    {
+      error = 4.4;
+    }
+    else
+    {
+      error = lastError; // 無法判斷時保持上一次的偏差
+    }
+
+    // 計算積分項
+    integral += error;
+
+    // 計算微分項
+    float derivative = error - lastError;
+
+    // 計算PID調整值
+    float adjustment = Kp * error + Ki * integral + Kd * derivative;
+
+    // === 原地旋轉邏輯 ===
+    // direction = 1: 順時針右轉
+    //   左輪正速度 (前進)，右輪負速度 (後退)
+    // direction = -1: 逆時針左轉
+    //   左輪負速度 (後退)，右輪正速度 (前進)
+    // 當error > 0（線在右邊）：調整使左輪加速、右輪減速 → 向右修正
+    // 當error < 0（線在左邊）：調整使左輪減速、右輪加速 → 向左修正
+
+    int spinSpeedL = (int)(baseRotateSpeed * direction + adjustment);
+    int spinSpeedR = (int)(-baseRotateSpeed * direction - adjustment);
+
+    // 限制速度在允許範圍內
+    spinSpeedL = constrain(spinSpeedL, minimumSpeed, maximumSpeed);
+    spinSpeedR = constrain(spinSpeedR, minimumSpeed, maximumSpeed);
+
+    // 執行原地旋轉
+    motor(spinSpeedL, spinSpeedR);
+
+    // 更新上一次的偏差值
+    lastError = error;
+
+    // 檢測退出條件
+  }
+
+  stop(); // 旋轉完成後停止馬達
+  return lastError;
+}
+
+// ===== 簡化版原地旋轉對準 =====
+// 功能：在原地旋轉或微調，直到車頭對準黑線中心並驗證IR_M持續看到500毫秒
+// 參數說明：
+//   baseRotateSpeed: 旋轉速度 (0~255)
+//   Kp, Kd: PID參數
+//   mode: 旋轉模式
+//        0 = 左轉模式
+//        1 = 右轉模式
+//        2 = 單純對準模式（只做微調，不做整體旋轉）
+// 說明：所有模式完成後，都會驗證IR_M持續看到線500毫秒才視為完成
+// 使用示例：
+//   PID_spin_to_center(100, 70, 50, 0, 500);        // 左轉對齊+驗證500ms
+//   PID_spin_to_center(100, 70, 50, 1, 500);        // 右轉對齊+驗證500ms
+//   PID_spin_to_center(50, 70, 50, 2, 500);         // 單純對準+驗證500ms
+void PID_spin_to_center(int baseRotateSpeed, float Kp, float Kd, int mode, unsigned long confirmMs)
+{
+  // 根據mode選擇旋轉方向
+  int direction = 0;
+
+  if (mode == 0) // 左轉模式
+    direction = -1;
+  else if (mode == 1) // 右轉模式
+    direction = 1;
+  else if (mode == 2) // 單純對準模式（只做微調，baseRotateSpeed設為0）
+  {
+    direction = 0;
+    baseRotateSpeed = 0; // 單純對準時不做整體旋轉
+  }
+
+  PID_spin(baseRotateSpeed, Kp, Kd, 0, direction, confirmMs, 0, []()
+           { return (IR_M_read() == 1 && IR_L_read() == 0 && IR_R_read() == 0); });
+}
+
+void turn_turn(int direction, int delayTime, unsigned long confirmMs)
+{
+  if (direction == 0) // 左轉
+    b_Left();
+  else // 右轉
+    b_Right();
+  delay(delayTime);
+  // direction 0=左轉 對應 PID mode 0=左轉對齊
+  // direction 1=右轉 對應 PID mode 1=右轉對齊
+  PID_spin_to_center(30, 15, 0, direction, confirmMs);
+}
+
 // --- 伺服馬達控制 ---
 void arm_up()
 {
@@ -610,14 +798,16 @@ void setup()
   pick_up();
 
   // //! 抵達右側已取貨，開始迴轉
-  b_Right();
-  delay(200);
-  while (!(IR_RR_read() == 1))
-  {
-    b_Right();
-  }
-  b_Left();
-  delay(100);
+  // b_Right();
+  // delay(200);
+  // while (!(IR_RR_read() == 1))
+  // {
+  //   b_Right();
+  // }
+  // b_Left();
+  // delay(100);
+
+  turn_turn(1, 450, 800);
   Padilla_trail(true, []()
                 { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 70, 100, 0, 250, 0, error);
   b_Left();
@@ -641,39 +831,22 @@ void setup()
   stop();
   delay(100);
   put_down();
-  backward();
-  delay(100);
-  b_Right();
-  delay(300);
-  while (!(IR_RR_read() == 1))
-  {
-    b_Right();
-  }
-  b_Left();
-  delay(250); // TODO:這裡有改100->250
-
+  turn_turn(1, 450, 800);
   // //! ====== 中側程式 ======
   Padilla_trail(false, []()
                 { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 70, 50, 0, 250, 0, error);
   forward();
   delay(100);
   Padilla_trail(false, []()
-                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 70, 90, 0, 250, 0, error);
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 70, 50, 0, 250, 0, error);
   forward();
-  delay(70);
+  delay(100);
   Padilla_trail(false, []()
                 { return (IR_R_read() == 1 && IR_M_read() == 1 && IR_L_read() == 1); }, 30, 0, 0, 50, 0, error);
   big_stop();
   pick_up();
   // //!  抵達中側已取貨，開始迴轉
-  b_Right();
-  delay(200);
-  while (!(IR_RR_read() == 1))
-  {
-    b_Right();
-  }
-  b_Left();
-  delay(100);
+  turn_turn(1, 450, 800);
   Padilla_trail(false, []()
                 { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 70, 100, 0, 250, 0, error);
   forward();
@@ -681,9 +854,11 @@ void setup()
   Padilla_trail(false, []()
                 { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 70, 90, 0, 250, 0, error);
   forward();
-  delay(20);
+  delay(50);
   Padilla_trail(false, []()
                 { return (IR_R_read() == 1 && IR_M_read() == 1 && IR_L_read() == 1); }, 30, 0, 0, 50, 0, error);
+
+  // ?---------------------------------------------------------------------------------------------------------------
 
   // Padilla_trail(false, []()
   //               { return (IR_L_read() == 1 && IR_M_read() == 1 && IR_R_read() == 1&& IR_RR_read() == 1 && IR_LL_read() == 1); }, 70, 100, 0, 100, 0, error);
@@ -785,3 +960,17 @@ void loop()
 {
   // TODO: 在此撰寫主程式邏輯
 }
+
+// TODO:如何使用PID_spin_to_center函式
+// 功能：自動旋轉/對準黑線並驗證IR_M持續500毫秒
+//
+// 使用示例：
+//   PID_spin_to_center(100, 70, 50, 0, 500);        // 左轉對齊+驗證500ms
+//   PID_spin_to_center(100, 70, 50, 1, 500);        // 右轉對齊+驗證500ms
+//   PID_spin_to_center(50, 70, 50, 2, 500);         // 單純對準+驗證500ms
+//
+// 說明：
+//   - 所有模式完成後都會自動驗證IR_M持續看到線500毫秒
+//   - mode 0: 逆時針左轉
+//   - mode 1: 順時針右轉
+//   - mode 2: 只做微調（baseRotateSpeed自動為0）
