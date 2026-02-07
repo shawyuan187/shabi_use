@@ -17,12 +17,16 @@ ESP32Encoder rightEncoder;
 Servo arm;  // 手臂伺服馬達
 Servo claw; // 爪子伺服馬達
 
+//===== 鏡頭斯服馬達物件 ======
+Servo camera; // 攝影機伺服馬達
+
 // ===== 伺服馬達腳位定義 =====
-#define ARM_PIN 14  // 手臂伺服馬達腳位
-#define CLAW_PIN 15 // 爪子伺服馬達腳位
+#define ARM_PIN 14    // 手臂伺服馬達腳位
+#define CLAW_PIN 15   // 爪子伺服馬達腳位
+#define CAMERA_PIN 25 // 攝影機伺服馬達腳位
 
 // ===== 伺服馬達角度設定 =====
-#define ARM_UP 90       // 手臂升起角度
+#define ARM_UP 120      // 手臂升起角度
 #define ARM_DOWN 40     // 手臂下降角度
 #define CLAW_OPEN 150   // 爪子開啟角度
 #define CLAW_CLOSE 45   // 爪子關閉角度
@@ -51,10 +55,10 @@ Servo claw; // 爪子伺服馬達
 #define MOTOR_R_BWD 4  // 右馬達反轉
 
 // PWM 通道 (使用 Timer 2 的通道 8-11，Timer 0 預留給伺服馬達)
-#define CH_L_FWD 8  // 左馬達正轉通道 (Timer 2)
-#define CH_L_BWD 9  // 左馬達反轉通道 (Timer 2)
-#define CH_R_FWD 10 // 右馬達正轉通道 (Timer 2)
-#define CH_R_BWD 11 // 右馬達反轉通道 (Timer 2)
+#define CH_L_FWD 4 // 左馬達正轉通道 (Timer 2)
+#define CH_L_BWD 5 // 左馬達反轉通道 (Timer 2)
+#define CH_R_FWD 6 // 右馬達正轉通道 (Timer 2)
+#define CH_R_BWD 7 // 右馬達反轉通道 (Timer 2)
 
 // ===== 參數設定 =====
 #define IR_THRESHOLD 2000 // 紅外線感測器閾值
@@ -677,7 +681,7 @@ void turn_turn(int direction, int delayTime, unsigned long confirmMs)
   delay(delayTime);
   // direction 0=左轉 對應 PID mode 0=左轉對齊
   // direction 1=右轉 對應 PID mode 1=右轉對齊
-  PID_spin_to_center(30, 15, 0, direction, confirmMs);
+  PID_spin_to_center(30, 18, 0, direction, confirmMs);
 }
 
 // --- 伺服馬達控制 ---
@@ -717,6 +721,22 @@ void put_down()
   delay(200);
 }
 
+// --- 伺服馬達控制 ---
+void camera_front()
+{
+  camera.write(CAMERA_FRONT);
+}
+
+void camera_left()
+{
+  camera.write(CAMERA_LEFT);
+}
+
+void camera_right()
+{
+  camera.write(CAMERA_RIGHT);
+}
+
 // ===== 主程式 =====
 void setup()
 {
@@ -724,12 +744,15 @@ void setup()
 
   // --- 伺服馬達定時器分配 (Timer 0 給伺服馬達) ---
   ESP32PWM::allocateTimer(0);
+  ESP32PWM::allocateTimer(1); // Timer 1 預留給其他用途（如LEDC PWM）
 
   // --- 伺服馬達初始化 ---
-  arm.setPeriodHertz(50);           // 標準 50Hz 伺服馬達
-  arm.attach(ARM_PIN, 500, 2400);   // SG90 脈寬範圍 500~2400us
-  claw.setPeriodHertz(50);          // 標準 50Hz 伺服馬達
-  claw.attach(CLAW_PIN, 500, 2400); // SG90 脈寬範圍 500~2400us
+  arm.setPeriodHertz(50);               // 標準 50Hz 伺服馬達
+  arm.attach(ARM_PIN, 500, 2400);       // SG90 脈寬範圍 500~2400us
+  claw.setPeriodHertz(50);              // 標準 50Hz 伺服馬達
+  claw.attach(CLAW_PIN, 500, 2400);     // SG90 脈寬範圍 500~2400us
+  camera.setPeriodHertz(50);            // 標準 50Hz 伺服馬達
+  camera.attach(CAMERA_PIN, 500, 2400); // SG90
 
   // --- 編碼器初始化 ---
   ESP32Encoder::useInternalWeakPullResistors = puType::up;
@@ -765,20 +788,26 @@ void setup()
   // TODO: 初始化完成後，可呼叫停止函式確保馬達不會亂轉
 
   //======================================================================程式開始==============================================================
+  camera_left();
   claw_open();
   delay(200);
   arm_down();
-  delay(200);
+  delay(1000);
 
   float error = 0.0f;
   forward();
   delay(100);
   Padilla_trail(true, []()
                 { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 70, 50, 0, 250, 0, error);
+  stop();
+  delay(100);
+  camera_front();
   forward();
   delay(100);
   Padilla_trail(false, []()
                 { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 50, 0, 0, 50, 0, error);
+  forward();
+  delay(50);
   b_Right();
   delay(180);
   while (!(IR_RR_read() == 1))
@@ -797,10 +826,12 @@ void setup()
   big_stop();
   pick_up();
 
-  // //! 抵達右側已取貨，開始迴轉
-  turn_turn(1, 450, 800);
+  // // //! 抵達右側已取貨，開始迴轉
+  turn_turn(1, 450, 1000);
   Padilla_trail(true, []()
                 { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 70, 100, 0, 250, 0, error);
+  // forward();
+  // delay(50);
   b_Left();
   delay(200);
   while (!(IR_LL_read() == 1))
@@ -822,87 +853,89 @@ void setup()
   stop();
   delay(100);
   put_down();
+  arm_up();
+  delay(200);
   turn_turn(1, 450, 800);
   // //! ====== 中側程式 ======
-  Padilla_trail(false, []()
-                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 30, 0, 0, 50, 0, error);
-  forward();
-  delay(120);
-  Padilla_trail(false, []()
-                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 70, 50, 0, 250, 0, error);
-  forward();
-  delay(100);
-  Padilla_trail(false, []()
-                { return (IR_R_read() == 1 && IR_M_read() == 1 && IR_L_read() == 1); }, 30, 0, 0, 50, 0, error);
-  big_stop();
-  pick_up();
-  // //!  抵達中側已取貨，開始迴轉
-  turn_turn(1, 450, 800);
-  Padilla_trail(false, []()
-                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 30, 0, 0, 50, 0, error);
-  forward();
-  delay(100);
-  Padilla_trail(false, []()
-                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 70, 50, 0, 250, 0, error);
-  forward();
-  delay(50);
-  Padilla_trail(false, []()
-                { return (IR_R_read() == 1 && IR_M_read() == 1 && IR_L_read() == 1); }, 30, 0, 0, 50, 0, error);
-  backward();
-  delay(100);
-  big_stop();
-  put_down();
+  // Padilla_trail(false, []()
+  //               { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 30, 0, 0, 50, 0, error);
+  // forward();
+  // delay(120);
+  // Padilla_trail(false, []()
+  //               { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 70, 50, 0, 250, 0, error);
+  // forward();
+  // delay(100);
+  // Padilla_trail(false, []()
+  //               { return (IR_R_read() == 1 && IR_M_read() == 1 && IR_L_read() == 1); }, 30, 0, 0, 50, 0, error);
+  // big_stop();
+  // pick_up();
+  // // //!  抵達中側已取貨，開始迴轉
+  // turn_turn(1, 450, 800);
+  // Padilla_trail(false, []()
+  //               { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 30, 0, 0, 50, 0, error);
+  // forward();
+  // delay(100);
+  // Padilla_trail(false, []()
+  //               { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 70, 50, 0, 250, 0, error);
+  // forward();
+  // delay(50);
+  // Padilla_trail(false, []()
+  //               { return (IR_R_read() == 1 && IR_M_read() == 1 && IR_L_read() == 1); }, 30, 0, 0, 50, 0, error);
+  // backward();
+  // delay(100);
+  // big_stop();
+  // put_down();
 
-  // //! ====== 左側程式 ======
-  arm_up();
-  turn_turn(1, 450, 800);
-  Padilla_trail(true, []()
-                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 70, 50, 0, 250, 0, error);
-  forward();
-  delay(100);
-  Padilla_trail(false, []()
-                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 50, 0, 0, 50, 0, error);
-  stop();
-  arm_down();
-  b_Left();
-  delay(200);
-  while (!(IR_LL_read() == 1))
-  {
-    b_Left();
-  }
-  while (!(IR_LL_read() == 0))
-  {
-    b_Left();
-  }
-  b_Right();
-  delay(100);
-  Padilla_trail(false, []()
-                { return (IR_L_read() == 1 && IR_R_read() == 1); }, 30, 0, 0, 50, 0, 0);
-  big_stop();
-  pick_up();
-  turn_turn(1, 450, 800);
-  Padilla_trail(true, []()
-                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 70, 100, 0, 250, 0, error);
-  b_Right();
-  delay(200);
-  while (!(IR_RR_read() == 1))
-  {
-    b_Right();
-  }
-  while (!(IR_RR_read() == 0))
-  {
-    b_Right();
-  }
-  b_Left();
-  delay(100);
-  Padilla_trail(false, []()
-                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 30, 0, 0, 50, 0, error);
-  forward();
-  delay(100);
+  // // //! ====== 左側程式 ======
+  // arm_up();
+  // turn_turn(1, 450, 800);
+  // Padilla_trail(true, []()
+  //               { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 70, 50, 0, 250, 0, error);
+  // forward();
+  // delay(100);
+  // Padilla_trail(false, []()
+  //               { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 50, 0, 0, 50, 0, error);
+  // stop();
+  // arm_down();
+  // b_Left();
+  // delay(200);
+  // while (!(IR_LL_read() == 1))
+  // {
+  //   b_Left();
+  // }
+  // while (!(IR_LL_read() == 0))
+  // {
+  //   b_Left();
+  // }
+  // b_Right();
+  // delay(100);
+  // Padilla_trail(false, []()
+  //               { return (IR_L_read() == 1 && IR_R_read() == 1); }, 30, 0, 0, 50, 0, 0);
+  // big_stop();
+  // pick_up();
+  // turn_turn(1, 450, 800);
+  // Padilla_trail(true, []()
+  //               { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 70, 100, 0, 250, 0, error);
+  // b_Right();
+  // delay(200);
+  // while (!(IR_RR_read() == 1))
+  // {
+  //   b_Right();
+  // }
+  // while (!(IR_RR_read() == 0))
+  // {
+  //   b_Right();
+  // }
+  // b_Left();
+  // delay(100);
+  // Padilla_trail(false, []()
+  //               { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 30, 0, 0, 50, 0, error);
+  // forward();
+  // delay(100);
   // Padilla_trail(false, []()
   //               { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 35, 0, 0, 70, 0, error);
   big_stop();
-  claw_open();
+  // put_down();
   //--------------------------------------------------------------
   stop();
 }
