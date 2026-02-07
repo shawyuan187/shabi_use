@@ -867,11 +867,11 @@ void setup()
   forward();
   delay(100);
   error = Padilla_trail(false, []()
-                { return (IR_R_read() == 1 && IR_M_read() == 1 && IR_L_read() == 1); }, 30, 0, 0, 50, 0, error);
+                { return (IR_LL_read() == 1); }, 30, 0, 0, 50, 0, error);
   big_stop();
   pick_up();
   // // //!  抵達中側已取貨，開始迴轉
-  turn_turn(1, 450, 800);
+  turn_turn(1, 450, 1000);
   error = Padilla_trail(false, []()
                 { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 30, 0, 0, 50, 0, error);
   forward();
@@ -879,7 +879,7 @@ void setup()
   error = Padilla_trail(false, []()
                 { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 70, 50, 0, 250, 0, error);
   forward();
-  delay(50);
+  delay(100);
   error = Padilla_trail(false, []()
                 { return (IR_R_read() == 1 && IR_M_read() == 1 && IR_L_read() == 1); }, 30, 0, 0, 50, 0, error);
   backward();
@@ -888,31 +888,31 @@ void setup()
   put_down();
 
   // // //! ====== 左側程式 ======
-  // arm_up();
-  // turn_turn(1, 450, 800);
-  // Padilla_trail(true, []()
-  //               { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 70, 50, 0, 250, 0, error);
-  // forward();
-  // delay(100);
-  // Padilla_trail(false, []()
-  //               { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 50, 0, 0, 50, 0, error);
-  // stop();
-  // arm_down();
-  // b_Left();
-  // delay(200);
-  // while (!(IR_LL_read() == 1))
-  // {
-  //   b_Left();
-  // }
-  // while (!(IR_LL_read() == 0))
-  // {
-  //   b_Left();
-  // }
-  // b_Right();
-  // delay(100);
-  // Padilla_trail(false, []()
-  //               { return (IR_L_read() == 1 && IR_R_read() == 1); }, 30, 0, 0, 50, 0, 0);
-  // big_stop();
+  arm_up();
+  turn_turn(1, 450, 800);
+  Padilla_trail(true, []()
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 70, 50, 0, 250, 0, error);
+  forward();
+  delay(100);
+  Padilla_trail(false, []()
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 50, 0, 0, 50, 0, error);
+  stop();
+  arm_down();
+  b_Left();
+  delay(200);
+  while (!(IR_LL_read() == 1))
+  {
+    b_Left();
+  }
+  while (!(IR_LL_read() == 0))
+  {
+    b_Left();
+  }
+  b_Right();
+  delay(100);
+  Padilla_trail(false, []()
+                { return (IR_L_read() == 1 && IR_R_read() == 1); }, 30, 0, 0, 50, 0, 0);
+  big_stop();
   // pick_up();
   // turn_turn(1, 450, 800);
   // Padilla_trail(true, []()
