@@ -816,7 +816,9 @@ void setup()
   claw_open();
   delay(200);
   arm_down();
-  delay(1000);
+  delay(1200);
+  int second_down_back_delay = 150; // 第二次下降後的後退時間
+  int third_down_back_delay = 350;  // 第三次下降後的後退時間
 
   float error = 0.0f;
   for (int i = 0; i < 2; i++)
@@ -871,7 +873,7 @@ void setup()
   Padilla_trail(false, []()
                 { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 40, 0, 0, 80, 0, error);
   backward();
-  delay(100);
+  delay(second_down_back_delay);
   stop();
   put_down();
   arm_up();
@@ -903,10 +905,9 @@ void setup()
   Padilla_trail(false, []()
                 { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 40, 0, 0, 80, 0, error);
   backward();
-  delay(350);
+  delay(third_down_back_delay);
   stop();
   put_down();
-  //--------------------------------------------------------------
   stop();
 }
 
