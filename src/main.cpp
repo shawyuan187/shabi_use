@@ -819,65 +819,68 @@ void setup()
   delay(1200);
   int second_down_back_delay = 150; // 第二次下降後的後退時間
   int third_down_back_delay = 350;  // 第三次下降後的後退時間
+  int all_kp = 40;
+  int turn_turn_delay = 1000;
+  int turn_turn_90_delay = 350;
 
   float error = 0.0f;
   for (int i = 0; i < 2; i++)
   {
     Padilla_trail(false, []()
-                  { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 40, 0, 0, 80, 0, error);
+                  { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_kp, 0, 0, 80, 0, error);
     delay(50);
   }
-  turn_turn(1, 300, 800); // 右轉300ms之後進行PID對齊800ms
+  turn_turn(1, turn_turn_90_delay, turn_turn_delay); // 右轉300ms之後進行PID對齊800ms
   Padilla_trail(false, []()
-                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 40, 0, 0, 80, 0, error);
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_kp, 0, 0, 80, 0, error);
   stop();
   pick_up();
 
   // //! 抵達右側已取貨，開始迴轉
-  turn_turn(1, 450, 1000); // 右轉450ms之後進行PID對齊1000ms
+  turn_turn(1, 450, turn_turn_delay); // 右轉450ms之後進行PID對齊1000ms
   Padilla_trail(false, []()
-                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 40, 0, 0, 80, 0, error);
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_kp, 0, 0, 80, 0, error);
   delay(50);
-  turn_turn(0, 300, 800); // 左轉300ms之後進行PID對齊800ms
+  turn_turn(0, turn_turn_90_delay, turn_turn_delay); // 左轉350ms之後進行PID對齊800ms
   Padilla_trail(false, []()
-                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 40, 0, 0, 80, 0, error);
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_kp, 0, 0, 80, 0, error);
   delay(100);
   Padilla_trail(false, []()
-                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 40, 0, 0, 80, 0, error);
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_kp, 0, 0, 80, 0, error);
   delay(50);
   stop();
   put_down();
   arm_up();
   delay(200);
-  turn_turn(1, 450, 800);
+  turn_turn(1, 450, turn_turn_delay); // 右轉450ms之後進行PID對齊1000ms
   arm_down();
   // //! ====== 中側程式 ======
   for (int i = 0; i < 2; i++)
   {
     Padilla_trail(false, []()
-                  { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 40, 0, 0, 80, 0, error);
+                  { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_kp, 0, 0, 80, 0, error);
     delay(50);
   }
   Padilla_trail(false, []()
-                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 40, 0, 0, 80, 0, error);
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_kp, 0, 0, 80, 0, error);
   stop();
   pick_up();
   // //!  抵達中側已取貨，開始迴轉
-  turn_turn(1, 450, 1000);
+  turn_turn(1, 450, turn_turn_delay);
   for (int i = 0; i < 2; i++)
   {
     Padilla_trail(false, []()
-                  { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 40, 0, 0, 80, 0, error);
+                  { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_kp, 0, 0, 80, 0, error);
     delay(100);
   }
   Padilla_trail(false, []()
-                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 40, 0, 0, 80, 0, error);
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_kp, 0, 0, 80, 0, error);
   backward();
   delay(second_down_back_delay);
   stop();
   put_down();
   arm_up();
-  turn_turn(1, 450, 1000);
+  turn_turn(1, 450, turn_turn_delay);
 
   // //! ====== 左側程式 ======
 
@@ -885,25 +888,25 @@ void setup()
   for (int i = 0; i < 2; i++)
   {
     Padilla_trail(false, []()
-                  { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 40, 0, 0, 80, 0, error);
+                  { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_kp, 0, 0, 80, 0, error);
     delay(50);
   }
-  turn_turn(0, 300, 800); // 右轉300ms之後進行PID對齊800ms
+  turn_turn(0, turn_turn_90_delay, turn_turn_delay); // 右轉350ms之後進行PID對齊800ms
   Padilla_trail(false, []()
-                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 40, 0, 0, 80, 0, error);
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_kp, 0, 0, 80, 0, error);
   stop();
   pick_up();
   // //!  抵達左側已取貨，開始迴轉
-  turn_turn(1, 450, 1000); // 右轉450ms之後進行PID對齊1000ms
+  turn_turn(1, 450, turn_turn_delay); // 右轉450ms之後進行PID對齊1000ms
   Padilla_trail(false, []()
-                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 40, 0, 0, 80, 0, error);
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_kp, 0, 0, 80, 0, error);
   delay(50);
-  turn_turn(1, 300, 800); // 左轉300ms之後進行PID對齊800ms
+  turn_turn(1, turn_turn_90_delay, turn_turn_delay); // 左轉350ms之後進行PID對齊800ms
   Padilla_trail(false, []()
-                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 40, 0, 0, 80, 0, error);
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_kp, 0, 0, 80, 0, error);
   delay(100);
   Padilla_trail(false, []()
-                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 40, 0, 0, 80, 0, error);
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_kp, 0, 0, 80, 0, error);
   backward();
   delay(third_down_back_delay);
   stop();
