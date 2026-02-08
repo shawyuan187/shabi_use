@@ -903,7 +903,7 @@ void setup()
   Padilla_trail(false, []()
                 { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 40, 0, 0, 80, 0, error);
   backward();
-  delay(400);
+  delay(350);
   stop();
   put_down();
   //--------------------------------------------------------------
