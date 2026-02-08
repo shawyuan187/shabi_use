@@ -26,13 +26,14 @@ Servo camera; // 攝影機伺服馬達
 #define CAMERA_PIN 25 // 攝影機伺服馬達腳位
 
 // ===== 伺服馬達角度設定 =====
-#define ARM_UP 120      // 手臂升起角度
-#define ARM_DOWN 40     // 手臂下降角度
-#define CLAW_OPEN 150   // 爪子開啟角度
-#define CLAW_CLOSE 45   // 爪子關閉角度
-#define CAMERA_FRONT 90 // 攝影機正前方角度
-#define CAMERA_LEFT 180 // 攝影機左側角度
-#define CAMERA_RIGHT 0  // 攝影機右側角度
+#define ARM_UP 120         // 手臂升起角度
+#define ARM_DOWN 40        // 手臂下降角度（取貨用）
+#define ARM_DOWN_UNLOAD 50 // 手臂下降角度（卸貨用，可獨立調整）
+#define CLAW_OPEN 150      // 爪子開啟角度
+#define CLAW_CLOSE 45      // 爪子關閉角度
+#define CAMERA_FRONT 90    // 攝影機正前方角度
+#define CAMERA_LEFT 180    // 攝影機左側角度
+#define CAMERA_RIGHT 0     // 攝影機右側角度
 
 // ===== 編碼器腳位定義 =====
 #define LEFT_ENCODER_A 18  // 左編碼器 A 相
@@ -65,6 +66,19 @@ Servo camera; // 攝影機伺服馬達
 #define PWM_FREQ 75000    // PWM 頻率
 #define PWM_RES 8         // PWM 解析度 (8-bit = 0~255)
 
+// ===== 感測器與車體物理參數 (mm) =====
+// 感測器中心到 IR_M 的距離 (左負右正)
+#define SENSOR_LL_POS -43.0f // LL 距中心 (28+15)mm
+#define SENSOR_L_POS -15.0f  // L 距中心 15mm
+#define SENSOR_R_POS 15.0f   // R 距中心 15mm
+#define SENSOR_RR_POS 43.0f  // RR 距中心 (15+28)mm
+#define SENSOR_WIDTH 3.6f    // 感測器窗口寬度
+#define LINE_WIDTH 18.0f     // 黑線寬度
+// 車體參數
+#define WHEEL_DIAMETER 64.5f   // 車輪直徑
+#define WHEEL_TRACK 91.1f      // 車輪輪距 (左右輪中心距)
+#define SENSOR_TO_AXLE 108.72f // IR_M 到輪軸中心距離
+
 // ===== 函式前向宣告 =====
 // 提示：函式宣告格式為 回傳型別 函式名稱(參數);
 //       例如：void forward(); 或 int IR_M_read();
@@ -88,13 +102,14 @@ void stop();                                                                    
 void turn_turn(int direction = 1, int delayTime = 450, unsigned long confirmMs = 1500); // 迴轉 (direction: 0=左, 1=右)
 
 // --- 伺服馬達控制 ---
-void arm_up();       // 手臂升起
-void arm_down();     // 手臂下降
-void claw_open();    // 爪子開啟
-void claw_close();   // 爪子關閉
-void camera_front(); // 攝影機正前方
-void camera_left();  // 攝影機左側
-void camera_right(); // 攝影機右側
+void arm_up();          // 手臂升起
+void arm_down();        // 手臂下降（取貨用）
+void arm_down_unload(); // 手臂下降（卸貨用）
+void claw_open();       // 爪子開啟
+void claw_close();      // 爪子關閉
+void camera_front();    // 攝影機正前方
+void camera_left();     // 攝影機左側
+void camera_right();    // 攝影機右側
 
 void pick_up();
 void put_down();
@@ -356,41 +371,42 @@ float Padilla_trail(bool useFiveIR, bool (*exitCondition)(), float Kp, float Kd,
 
     if (useFiveIR)
     {
+      // 誤差值基於感測器物理間距等比計算 (LL:-43, L:-15, M:0, R:+15, RR:+43 mm)
       if (IR_LL_read() == 0 && IR_L_read() == 0 && IR_M_read() == 1 && IR_R_read() == 0 && IR_RR_read() == 0)
       {
-        error = 0;
+        error = 0; // 正中，偏移 0mm
       }
       else if (IR_LL_read() == 0 && IR_L_read() == 1 && IR_M_read() == 1 && IR_R_read() == 0 && IR_RR_read() == 0)
       {
-        error = -0.4;
+        error = -0.75; // 略偏左，偏移約 7.5mm
       }
       else if (IR_LL_read() == 0 && IR_L_read() == 0 && IR_M_read() == 1 && IR_R_read() == 1 && IR_RR_read() == 0)
       {
-        error = 0.4;
+        error = 0.75; // 略偏右，偏移約 7.5mm
       }
       else if (IR_LL_read() == 0 && IR_L_read() == 1 && IR_M_read() == 0 && IR_R_read() == 0 && IR_RR_read() == 0)
       {
-        error = -1.9;
+        error = -1.83; // 偏左，偏移約 18.3mm
       }
       else if (IR_LL_read() == 0 && IR_L_read() == 0 && IR_M_read() == 0 && IR_R_read() == 1 && IR_RR_read() == 0)
       {
-        error = 1.9;
+        error = 1.83; // 偏右，偏移約 18.3mm
       }
       else if (IR_LL_read() == 1 && IR_L_read() == 1 && IR_M_read() == 0 && IR_R_read() == 0 && IR_RR_read() == 0)
       {
-        error = -2.8;
+        error = -2.9; // 大偏左，偏移約 29mm
       }
       else if (IR_LL_read() == 0 && IR_L_read() == 0 && IR_M_read() == 0 && IR_R_read() == 1 && IR_RR_read() == 1)
       {
-        error = 2.8;
+        error = 2.9; // 大偏右，偏移約 29mm
       }
       else if (IR_LL_read() == 1 && IR_L_read() == 0 && IR_M_read() == 0 && IR_R_read() == 0 && IR_RR_read() == 0)
       {
-        error = -4.4;
+        error = -4.3; // 極偏左，偏移約 43mm
       }
       else if (IR_LL_read() == 0 && IR_L_read() == 0 && IR_M_read() == 0 && IR_R_read() == 0 && IR_RR_read() == 1)
       {
-        error = 4.4;
+        error = 4.3; // 極偏右，偏移約 43mm
       }
       else
       {
@@ -399,25 +415,26 @@ float Padilla_trail(bool useFiveIR, bool (*exitCondition)(), float Kp, float Kd,
     }
     else
     {
+      // 誤差值基於感測器物理間距等比計算 (L:-15, M:0, R:+15 mm)
       if (IR_L_read() == 0 && IR_M_read() == 1 && IR_R_read() == 0)
       {
-        error = 0;
+        error = 0; // 正中
       }
       else if (IR_L_read() == 1 && IR_M_read() == 1 && IR_R_read() == 0)
       {
-        error = -0.4;
+        error = -0.75; // 略偏左，偏移約 7.5mm
       }
       else if (IR_L_read() == 0 && IR_M_read() == 1 && IR_R_read() == 1)
       {
-        error = 0.4;
+        error = 0.75; // 略偏右，偏移約 7.5mm
       }
       else if (IR_L_read() == 1 && IR_M_read() == 0 && IR_R_read() == 0)
       {
-        error = -1.9;
+        error = -1.83; // 偏左，偏移約 18.3mm
       }
       else if (IR_L_read() == 0 && IR_M_read() == 0 && IR_R_read() == 1)
       {
-        error = 1.9;
+        error = 1.83; // 偏右，偏移約 18.3mm
       }
       else
       {
@@ -543,59 +560,60 @@ float PID_spin(int baseRotateSpeed, float Kp, float Kd, float Ki, int direction,
     // 計算偏差值（基於五個紅外線感測器的組合）
     float error = 0.0f;
 
+    // 誤差值基於感測器物理間距等比計算 (LL:-43, L:-15, M:0, R:+15, RR:+43 mm)
     // 完美中心對齊 - 只有中間感測器看到黑線
     if (IR_LL_read() == 0 && IR_L_read() == 0 && IR_M_read() == 1 &&
         IR_R_read() == 0 && IR_RR_read() == 0)
     {
-      error = 0;
+      error = 0; // 正中，偏移 0mm
     }
     // 略微左偏
     else if (IR_LL_read() == 0 && IR_L_read() == 1 && IR_M_read() == 1 &&
              IR_R_read() == 0 && IR_RR_read() == 0)
     {
-      error = -0.4;
+      error = -0.75; // 偏移約 7.5mm
     }
     // 略微右偏
     else if (IR_LL_read() == 0 && IR_L_read() == 0 && IR_M_read() == 1 &&
              IR_R_read() == 1 && IR_RR_read() == 0)
     {
-      error = 0.4;
+      error = 0.75; // 偏移約 7.5mm
     }
     // 左側較強
     else if (IR_LL_read() == 0 && IR_L_read() == 1 && IR_M_read() == 0 &&
              IR_R_read() == 0 && IR_RR_read() == 0)
     {
-      error = -1;
+      error = -1.83; // 偏移約 18.3mm
     }
     // 右側較強
     else if (IR_LL_read() == 0 && IR_L_read() == 0 && IR_M_read() == 0 &&
              IR_R_read() == 1 && IR_RR_read() == 0)
     {
-      error = 1;
+      error = 1.83; // 偏移約 18.3mm
     }
     // 最左邊
     else if (IR_LL_read() == 1 && IR_L_read() == 1 && IR_M_read() == 0 &&
              IR_R_read() == 0 && IR_RR_read() == 0)
     {
-      error = -2.8;
+      error = -2.9; // 偏移約 29mm
     }
     // 最右邊
     else if (IR_LL_read() == 0 && IR_L_read() == 0 && IR_M_read() == 0 &&
              IR_R_read() == 1 && IR_RR_read() == 1)
     {
-      error = 2.8;
+      error = 2.9; // 偏移約 29mm
     }
     // 極左邊
     else if (IR_LL_read() == 1 && IR_L_read() == 0 && IR_M_read() == 0 &&
              IR_R_read() == 0 && IR_RR_read() == 0)
     {
-      error = -4.4;
+      error = -4.3; // 偏移約 43mm
     }
     // 極右邊
     else if (IR_LL_read() == 0 && IR_L_read() == 0 && IR_M_read() == 0 &&
              IR_R_read() == 0 && IR_RR_read() == 1)
     {
-      error = 4.4;
+      error = 4.3; // 偏移約 43mm
     }
     else
     {
@@ -695,6 +713,11 @@ void arm_down()
   arm.write(ARM_DOWN);
 }
 
+void arm_down_unload()
+{
+  arm.write(ARM_DOWN_UNLOAD);
+}
+
 void claw_open()
 {
   claw.write(CLAW_OPEN);
@@ -785,7 +808,8 @@ void setup()
   ledcSetup(CH_R_FWD, PWM_FREQ, PWM_RES);
   ledcAttachPin(MOTOR_R_FWD, CH_R_FWD);
 
-  // TODO: 初始化完成後，可呼叫停止函式確保馬達不會亂轉
+  // PID OK 參數
+  // 40, 0, 0, 80
 
   //======================================================================程式開始==============================================================
   camera_left();
@@ -795,148 +819,93 @@ void setup()
   delay(1000);
 
   float error = 0.0f;
-  forward();
-  delay(100);
-  Padilla_trail(true, []()
-                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 70, 50, 0, 250, 0, error);
+  for (int i = 0; i < 2; i++)
+  {
+    Padilla_trail(false, []()
+                  { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 40, 0, 0, 80, 0, error);
+    delay(50);
+  }
+  turn_turn(1, 300, 800); // 右轉300ms之後進行PID對齊800ms
+  Padilla_trail(false, []()
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 40, 0, 0, 80, 0, error);
   stop();
-  delay(100);
-  camera_front();
-  forward();
-  delay(100);
-  Padilla_trail(false, []()
-                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 50, 0, 0, 50, 0, error);
-  forward();
-  delay(50);
-  b_Right();
-  delay(180);
-  while (!(IR_RR_read() == 1))
-  {
-    b_Right();
-  }
-  while (!(IR_RR_read() == 0))
-  {
-    b_Right();
-  }
-  b_Left();
-  delay(100);
-
-  Padilla_trail(false, []()
-                { return (IR_R_read() == 1 && IR_M_read() == 1 && IR_L_read() == 1); }, 35, 0, 0, 50, 0, error);
-  big_stop();
   pick_up();
 
-  // // //! 抵達右側已取貨，開始迴轉
-  turn_turn(1, 450, 1000);
-  Padilla_trail(true, []()
-                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 70, 100, 0, 250, 0, error);
-  forward();
+  // //! 抵達右側已取貨，開始迴轉
+  turn_turn(1, 450, 1000); // 右轉450ms之後進行PID對齊1000ms
+  Padilla_trail(false, []()
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 40, 0, 0, 80, 0, error);
   delay(50);
-  b_Left();
-  delay(200);
-  while (!(IR_LL_read() == 1))
-  {
-    b_Left();
-  }
-  while (!(IR_LL_read() == 0))
-  {
-    b_Left();
-  }
-  b_Right();
+  turn_turn(0, 300, 800); // 左轉300ms之後進行PID對齊800ms
+  Padilla_trail(false, []()
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 40, 0, 0, 80, 0, error);
   delay(100);
   Padilla_trail(false, []()
-                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 30, 0, 0, 50, 0, error);
-  forward();
-  delay(100);
-  Padilla_trail(false, []()
-                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 35, 0, 0, 70, 0, error);
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 40, 0, 0, 80, 0, error);
+  delay(50);
   stop();
-  delay(100);
   put_down();
   arm_up();
   delay(200);
   turn_turn(1, 450, 800);
   arm_down();
   // //! ====== 中側程式 ======
-  error = Padilla_trail(false, []()
-                        { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 30, 0, 0, 50, 0, error);
-  forward();
-  delay(100);
-  error = Padilla_trail(false, []()
-                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 30, 0, 0, 50, 0, error);
-  forward();
-  delay(100);
-  error = Padilla_trail(false, []()
-                { return (IR_LL_read() == 1); }, 30, 0, 0, 50, 0, error);
-  big_stop();
+  for (int i = 0; i < 2; i++)
+  {
+    Padilla_trail(false, []()
+                  { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 40, 0, 0, 80, 0, error);
+    delay(50);
+  }
+  Padilla_trail(false, []()
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 40, 0, 0, 80, 0, error);
+  stop();
   pick_up();
-  // // //!  抵達中側已取貨，開始迴轉
+  // //!  抵達中側已取貨，開始迴轉
   turn_turn(1, 450, 1000);
-  error = Padilla_trail(false, []()
-                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 30, 0, 0, 50, 0, error);
-  forward();
-  delay(100);
-  error = Padilla_trail(false, []()
-                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 70, 50, 0, 250, 0, error);
-  forward();
-  delay(100);
-  error = Padilla_trail(false, []()
-                { return (IR_R_read() == 1 && IR_M_read() == 1 && IR_L_read() == 1); }, 30, 0, 0, 50, 0, error);
+  for (int i = 0; i < 2; i++)
+  {
+    Padilla_trail(false, []()
+                  { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 40, 0, 0, 80, 0, error);
+    delay(100);
+  }
+  Padilla_trail(false, []()
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 40, 0, 0, 80, 0, error);
   backward();
   delay(100);
-  big_stop();
-  put_down();
-
-  // // //! ====== 左側程式 ======
-  arm_up();
-  turn_turn(1, 450, 800);
-  Padilla_trail(true, []()
-                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 70, 50, 0, 250, 0, error);
-  forward();
-  delay(100);
-  Padilla_trail(false, []()
-                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 50, 0, 0, 50, 0, error);
   stop();
+  put_down();
+  arm_up();
+  turn_turn(1, 450, 1000);
+
+  // //! ====== 左側程式 ======
+
   arm_down();
-  b_Left();
-  delay(200);
-  while (!(IR_LL_read() == 1))
+  for (int i = 0; i < 2; i++)
   {
-    b_Left();
+    Padilla_trail(false, []()
+                  { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 40, 0, 0, 80, 0, error);
+    delay(50);
   }
-  while (!(IR_LL_read() == 0))
-  {
-    b_Left();
-  }
-  b_Right();
+  turn_turn(0, 300, 800); // 右轉300ms之後進行PID對齊800ms
+  Padilla_trail(false, []()
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 40, 0, 0, 80, 0, error);
+  stop();
+  pick_up();
+  // //!  抵達左側已取貨，開始迴轉
+  turn_turn(1, 450, 1000); // 右轉450ms之後進行PID對齊1000ms
+  Padilla_trail(false, []()
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 40, 0, 0, 80, 0, error);
+  delay(50);
+  turn_turn(1, 300, 800); // 左轉300ms之後進行PID對齊800ms
+  Padilla_trail(false, []()
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 40, 0, 0, 80, 0, error);
   delay(100);
   Padilla_trail(false, []()
-                { return (IR_L_read() == 1 && IR_R_read() == 1); }, 30, 0, 0, 50, 0, 0);
-  big_stop();
-  // pick_up();
-  // turn_turn(1, 450, 800);
-  // Padilla_trail(true, []()
-  //               { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 70, 100, 0, 250, 0, error);
-  // b_Right();
-  // delay(200);
-  // while (!(IR_RR_read() == 1))
-  // {
-  //   b_Right();
-  // }
-  // while (!(IR_RR_read() == 0))
-  // {
-  //   b_Right();
-  // }
-  // b_Left();
-  // delay(100);
-  // Padilla_trail(false, []()
-  //               { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 30, 0, 0, 50, 0, error);
-  // forward();
-  // delay(100);
-  // Padilla_trail(false, []()
-  //               { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 35, 0, 0, 70, 0, error);
-  big_stop();
-  // put_down();
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, 40, 0, 0, 80, 0, error);
+  backward();
+  delay(300);
+  stop();
+  put_down();
   //--------------------------------------------------------------
   stop();
 }
