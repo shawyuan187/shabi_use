@@ -816,7 +816,7 @@ void setup()
   claw_open();
   delay(200);
   arm_down();
-  delay(1200);
+  delay(200);
   int second_down_back_delay = 150; // 第二次下降後的後退時間
   int third_down_back_delay = 350;  // 第三次下降後的後退時間
   int all_kp = 42;
@@ -825,12 +825,14 @@ void setup()
   int turn_turn_90_delay = 350;
 
   float error = 0.0f;
-  for (int i = 0; i < 2; i++)
-  {
-    Padilla_trail(false, []()
-                  { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_kp, all_kd, 0, 80, 0, error);
-    delay(50);
-  }
+  Padilla_trail(false, []()
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_kp, all_kd, 0, 80, 0, error);
+  delay(50);
+  stop();
+  turn_turn(0, 0, 1000); // 左轉0ms之後進行PID對齊1000ms
+  Padilla_trail(false, []()
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_kp, all_kd, 0, 80, 0, error);
+  delay(50);
   turn_turn(1, turn_turn_90_delay, turn_turn_delay); // 右轉300ms之後進行PID對齊800ms
   Padilla_trail(false, []()
                 { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_kp, all_kd, 0, 80, 0, error);
@@ -890,7 +892,7 @@ void setup()
   {
     Padilla_trail(false, []()
                   { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_kp, all_kd, 0, 80, 0, error);
-    delay(50);
+    delay(80);
   }
   turn_turn(0, turn_turn_90_delay, turn_turn_delay); // 右轉350ms之後進行PID對齊800ms
   Padilla_trail(false, []()
