@@ -66,19 +66,6 @@ Servo camera; // 攝影機伺服馬達
 #define PWM_FREQ 75000    // PWM 頻率
 #define PWM_RES 8         // PWM 解析度 (8-bit = 0~255)
 
-// ===== 速度閉環控制參數 =====
-// 速度控制週期（毫秒）：根據 test_max_speed() 測得的極限速度調整
-// 建議：每週期計數變化 ≥ 5 較穩定
-// 例如：極限 45 c/100ms → 用 20ms（約 9c）；極限 20 c/100ms → 用 50ms（約 10c）
-#define SPEED_CONTROL_PERIOD 3 // 速度控制週期，單位 ms
-
-//? 調參指引：SPEED_KP （速度閉環比例係數）
-// - 作用：PWM 調整量 = (目標速度 - 實際速度) * Kp
-// - 太大（例：5.0）→ 車子一頓一頓、抖動 → 往下調
-// - 太小（例：0.01）→ 反應慢、達不到目標速度 → 往上調
-// - 建議從 0.1 開始，逐步微調至平順
-#define SPEED_KP 0.8 // 速度控制比例係數
-
 // ===== 感測器與車體物理參數 (mm) =====
 // 感測器中心到 IR_M 的距離 (左負右正)
 #define SENSOR_LL_POS -43.0f // LL 距中心 (28+15)mm
@@ -113,10 +100,6 @@ void b_Left();                                                                  
 void b_Right();                                                                         // 急右轉 (右輪反轉)
 void stop();                                                                            // 停止
 void turn_turn(int direction = 1, int delayTime = 450, unsigned long confirmMs = 1500); // 迴轉 (direction: 0=左, 1=右)
-void p_fw_v2(int distance);                                                             // 很正的前進（距離控制）
-void speed_control(float L_target, float R_target);                                     // 調節速度
-void p_right(int degree);                                                               // 右轉（控制度數）
-void p_left(int degree);                                                                // 左轉（控制度數）
 
 // --- 伺服馬達控制 ---
 void arm_up();          // 手臂升起
@@ -219,10 +202,14 @@ void big_stop()
   motor(-255, -255); // 馬達速度-200->-255
   delay(10);
   motor(0, 0);
+  leftEncoder.clearCount();
+  rightEncoder.clearCount();
 }
 void stop()
 {
   motor(0, 0);
+  leftEncoder.clearCount();
+  rightEncoder.clearCount();
 }
 
 void motor(int L, int R)
@@ -715,325 +702,6 @@ void turn_turn(int direction, int delayTime, unsigned long confirmMs)
   PID_spin_to_center(30, 18, 0, direction, confirmMs);
 }
 
-// ============ 速度閉環控制函式 ============
-// 原理：不再設定固定 PWM，而是設定「目標速度」
-//       程式會根據實際速度動態調整 PWM
-//       這樣不管電池電量如何，都能維持相同的實際速度
-
-// 全域變數：儲存當前左右輪的 PWM 值（供閉環控制累加調整）
-float L_pwm = 0; // 左輪當前 PWM（0~255）
-float R_pwm = 0; // 右輪當前 PWM（0~255）
-
-void speed_control(float L_target, float R_target)
-{
-  //* 速度閉環控制：根據目標速度動態調整 PWM
-  // ===== 速度閉環控制（單次呼叫）=====
-  // 輸入：L_target = 左輪目標速度（c/週期）
-  //       R_target = 右輪目標速度（c/週期）
-  // 原理：比較「目標速度」與「實際速度」的差異（誤差）
-  //       根據誤差調整 PWM：
-  //       - 實際速度 < 目標 → 加大 PWM
-  //       - 實際速度 > 目標 → 減小 PWM
-
-  // --- 記錄起始計數 ---
-  long L_start = leftEncoder.getCount();
-  long R_start = rightEncoder.getCount();
-
-  // --- 等待一個控制週期 ---
-  delay(SPEED_CONTROL_PERIOD);
-
-  // --- 計算實際速度（這段時間內的計數變化量）---
-  long L_actual = leftEncoder.getCount() - L_start;  // 左輪實際速度
-  long R_actual = rightEncoder.getCount() - R_start; // 右輪實際速度
-
-  // --- 計算誤差（目標 - 實際）---
-  // 正誤差 = 跑太慢，需要加速
-  // 負誤差 = 跑太快，需要減速
-  float L_error = L_target - L_actual;
-  float R_error = R_target - R_actual;
-
-  // --- 根據誤差調整 PWM（比例控制）---
-  // PWM 調整量 = 誤差 × 比例係數（Kp）
-  // Kp 越大，調整越激進；Kp 越小，調整越平緩
-  L_pwm = L_pwm + L_error * SPEED_KP;
-  R_pwm = R_pwm + R_error * SPEED_KP;
-
-  // --- 限制 PWM 範圍（0~255）---
-  L_pwm = constrain(L_pwm, -255, 255);
-  R_pwm = constrain(R_pwm, -255, 255);
-
-  // --- 輸出到馬達 ---
-  motor((int)L_pwm, (int)R_pwm);
-}
-
-void p_fw_v2(int distance)
-{
-  //* 新版前進函式：速度閉環控制
-  // ===== 新版前進函式（速度閉環 + 同步修正）=====
-  // 輸入：distance = 目標距離（編碼器計數值，約 0.5mm/count）
-  // 特點：
-  //   1. 速度閉環：根據目標速度動態調整 PWM，不受電量影響
-  //   2. 左右同步：即時修正左右輪差異，保持直線
-  //
-  // ===== 校正流程（請依序進行）=====
-  //
-  // 【步驟 1】測極限速度 → 決定 BASE_SPEED
-  //    - 呼叫 test_max_speed()，記錄左右輪 c/20ms
-  //    - 以較慢的輪子為基準，乘 70~80% 作為 BASE_SPEED
-  //    - 例：左輪 85、右輪 88 → BASE_SPEED = 85 * 0.7 ≈ 60
-  //
-  // 【步驟 2】關閉 SYNC_KP → 單獨調 SPEED_KP
-  //    - 先把 SYNC_KP 設為 0（排除左右同步的干擾）
-  //    - 觀察車子運動是否平順（不抖、不頓）
-  //    - 若一頓一頓 → SPEED_KP 太大，往下調（例：5.0 → 0.5 → 0.1）
-  //    - 若反應太慢 → SPEED_KP 太小，往上調
-  //    - 目標：平順加速、穩定巡航
-  //
-  // 【步驟 3】調 MIN_SPEED（從低往高調）
-  //    - 觀察減速階段是否「停了又動」（速度降太低，馬達停轉再啟動）
-  //    - 若有此現象 → MIN_SPEED 太低，往上調（例：10 → 20 → 30）
-  //    - 目標：減速過程平滑連續，不會中途停頓
-  //
-  // 【步驟 4】調 TOLERANCE（補償慣性超距）
-  //    - 讓車跑完後，讀取編碼器計數，看超過目標多少
-  //    - 若超距 50 → TOLERANCE 設 50（提早停止補償慣性）
-  //    - 可同時調 DECEL_START：提早減速 = 減少超距
-  //
-  // 【步驟 5】開啟 SYNC_KP → 調到走直線不晃(尚未完成)
-  //    - 確認步驟 2-4 完成後，將 SYNC_KP 設為小值（例：0.1）
-  //    - 若走歪 → 加大 SYNC_KP
-  //    - 若左右晃動 → SYNC_KP 太大，調小
-  //    - 目標：直線行駛，不偏移也不晃
-  //
-  // ===== 參數說明 =====
-
-  // ===== 測試結果 =====
-  // ===== 測量結果 =====
-  // 左輪: 116 c/100ms | 右輪: 105 c/100ms
-  // 建議 c/20ms: 左 23 / 右 21
-
-  // --- 參數設定（根據上述流程校正後的值）---
-  // 實測極限：左輪 85 c/20ms、右輪 88 c/20ms
-  // 以較慢的左輪為基準，設定 70%（保守）
-  //? 調參：根據 test_max_speed() 結果調整，取較慢輪子的 70%
-  const float BASE_SPEED = 9; // 基礎目標速度（c/週期），約 70% 極限
-  // const float SYNC_KP = 0.1;  // 【步驟 5】左右同步修正係數（目前關閉）
-
-  // --- 清除編碼器 ---
-  leftEncoder.clearCount();
-  rightEncoder.clearCount();
-
-  // --- 重置 PWM 累積值 ---
-  L_pwm = 50; // 給一個初始 PWM，加速啟動
-  R_pwm = 50;
-
-  // --- 主控制迴圈 ---
-  while (true)
-  {
-    // 讀取當前計數
-    long L_count = leftEncoder.getCount();
-    long R_count = rightEncoder.getCount();
-    long avgCount = (L_count + R_count) / 2; // 平均計數（代表行進距離）
-
-    // === 終止條件：到達目標 ===
-    if (avgCount >= distance)
-    {
-      break;
-    }
-
-    // === 呼叫速度閉環控制（左右輪目標速度相同）===
-    speed_control(BASE_SPEED, BASE_SPEED);
-
-    // 【步驟 5】若要開啟左右同步修正，取消以下註解：
-    // long diffError = L_count - R_count;  // 左輪 - 右輪
-    // float correction = diffError * SYNC_KP;
-    // speed_control(BASE_SPEED - correction, BASE_SPEED + correction);
-  }
-
-  // --- 停止 ---
-  stop();
-  L_pwm = 0;
-  R_pwm = 0;
-}
-
-void p_right(int degree)
-{
-  // 目標距離（編碼器計數值）
-  int distance = degree * (960 / 180);
-  long targetCount = distance;
-  // p_left_dis = distance;
-  // 清除編碼器計數器
-  leftEncoder.clearCount();
-  rightEncoder.clearCount();
-
-  // 階段 1：快速右轉到接近目標
-  const int DECEL_COUNT = 1000; // 開始減速的計數值，方便調整
-  b_Right();
-
-  while (true)
-  {
-    long leftCount = leftEncoder.getCount();
-    long rightCount = abs(rightEncoder.getCount());
-    // 當計數接近目標時停止快速階段
-    if ((leftCount >= targetCount - DECEL_COUNT) || (rightCount >= targetCount - DECEL_COUNT))
-    {
-      break;
-    }
-    delay(1);
-  }
-
-  // 階段 2：低速精調
-  motor(35, -35); // 低速右轉
-  delay(60);
-  stop();
-
-  // 階段 3：反復調整至誤差範圍內
-  const int TOLERANCE = 10;       // 容差範圍（±10 計數）
-  const int L_MIN_SPEED = 30;     // 最小驅動速度
-  const int R_MIN_SPEED = -50;    // 最小驅動速度
-  unsigned long maxAttempts = 25; // 最多調整 25 次
-  unsigned long attempts = 0;
-
-  while (attempts < maxAttempts)
-  {
-    long leftCount = leftEncoder.getCount();
-    long rightCount = abs(rightEncoder.getCount());
-    long L_error = leftCount - targetCount; // 計算誤差
-    long R_error = rightCount - targetCount;
-
-    // 誤差在容差範圍內，完成
-    if ((abs(L_error) < TOLERANCE) && (abs(R_error) < TOLERANCE))
-    {
-      break;
-    }
-
-    // 判斷各輪是否超過或未達目標
-    bool L_over = L_error > TOLERANCE;   // 左輪超過
-    bool L_under = L_error < -TOLERANCE; // 左輪未達
-    bool R_over = R_error > TOLERANCE;   // 右輪超過
-    bool R_under = R_error < -TOLERANCE; // 右輪未達
-
-    // 動態計算調整速度
-    int L_adjustSpeed = map(abs(L_error), TOLERANCE, 100, L_MIN_SPEED, 50);
-    L_adjustSpeed = constrain(L_adjustSpeed, L_MIN_SPEED, 50);
-    int R_adjustSpeed = map(abs(R_error), TOLERANCE, 100, R_MIN_SPEED, -50);
-    R_adjustSpeed = constrain(R_adjustSpeed, R_MIN_SPEED, -50);
-
-    // 根據各輪狀態同時調整
-    int L_speed = 0;
-    int R_speed = 0;
-
-    // 左輪修正
-    if (L_over)
-      L_speed = -L_adjustSpeed; // 超過 → 反轉
-    else if (L_under)
-      L_speed = L_adjustSpeed; // 未達 → 正轉
-
-    // 右輪修正
-    if (R_over)
-      R_speed = -R_adjustSpeed; // 超過 → 反轉
-    else if (R_under)
-      R_speed = R_adjustSpeed; // 未達 → 正轉
-
-    motor(L_speed, R_speed);
-    delay(30);
-    stop();
-    delay(10);
-    attempts++;
-  }
-  Serial.print("Right Turn Completed. Final Counts - Left: ");
-  Serial.print(leftEncoder.getCount());
-  Serial.print(", Right: ");
-  Serial.println(abs(rightEncoder.getCount()));
-}
-
-void p_left(int degree)
-{
-  // 目標距離（編碼器計數值）
-  int distance = degree * (930 / 180);
-  long targetCount = distance;
-  // p_left_dis = distance;
-  // 清除編碼器計數器
-  leftEncoder.clearCount();
-  rightEncoder.clearCount();
-
-  //* 階段 1：快速前進到接近目標
-  const int DECEL_COUNT = 1000; // 開始減速的計數值，方便調整
-  b_Left();
-
-  while (true)
-  {
-    long leftCount = abs(leftEncoder.getCount());
-    long rightCount = rightEncoder.getCount();
-    // 當計數接近目標時停止快速階段
-    if ((leftCount >= targetCount - DECEL_COUNT) || (rightCount >= targetCount - DECEL_COUNT))
-    {
-      break;
-    }
-    delay(1);
-  }
-
-  //* 階段 2：低速精調
-  motor(-35, 35); // 低速前進
-  delay(60);
-  stop();
-
-  //* 階段 3：反復調整至誤差範圍內
-  const int TOLERANCE = 10;       // 容差範圍（±10 計數）
-  const int L_MIN_SPEED = -50;    // 最小驅動速度
-  const int R_MIN_SPEED = 30;     // 最小驅動速度
-  unsigned long maxAttempts = 25; // 最多調整 25 次
-  unsigned long attempts = 0;
-
-  while (attempts < maxAttempts)
-  {
-    long leftCount = abs(leftEncoder.getCount());
-    long rightCount = rightEncoder.getCount();
-    long L_error = leftCount - targetCount; // 計算誤差
-    long R_error = rightCount - targetCount;
-
-    // 誤差在容差範圍內，完成
-    if ((abs(L_error) < TOLERANCE) && (abs(R_error) < TOLERANCE))
-    {
-      break;
-    }
-
-    // 判斷各輪是否超過或未達目標
-    bool L_over = L_error > TOLERANCE;   // 左輪超過
-    bool L_under = L_error < -TOLERANCE; // 左輪未達
-    bool R_over = R_error > TOLERANCE;   // 右輪超過
-    bool R_under = R_error < -TOLERANCE; // 右輪未達
-
-    // 動態計算調整速度
-    int L_adjustSpeed = map(abs(L_error), TOLERANCE, 100, L_MIN_SPEED, -50);
-    L_adjustSpeed = constrain(L_adjustSpeed, L_MIN_SPEED, -50);
-    int R_adjustSpeed = map(abs(R_error), TOLERANCE, 100, R_MIN_SPEED, 50);
-    R_adjustSpeed = constrain(R_adjustSpeed, R_MIN_SPEED, 50);
-
-    // 根據各輪狀態同時調整
-    int L_speed = 0;
-    int R_speed = 0;
-
-    // 左輪修正
-    if (L_over)
-      L_speed = -L_adjustSpeed; // 超過 → 反轉
-    else if (L_under)
-      L_speed = L_adjustSpeed; // 未達 → 正轉
-
-    // 右輪修正
-    if (R_over)
-      R_speed = -R_adjustSpeed; // 超過 → 反轉
-    else if (R_under)
-      R_speed = R_adjustSpeed; // 未達 → 正轉
-
-    motor(L_speed, R_speed);
-    delay(30);
-    stop();
-    delay(10);
-    attempts++;
-  }
-}
-
 // --- 伺服馬達控制 ---
 void arm_up()
 {
@@ -1070,6 +738,8 @@ void pick_up()
 
 void put_down()
 {
+  arm_down();
+  delay(300);
   claw_open();
   delay(200);
 }
@@ -1140,13 +810,13 @@ void setup()
 
   // PID OK 參數
   // 40, 0, 0, 80
-  //======================================================================決賽程式開始（灰車）==============================================================
-  camera_front();
+
+  //======================================================================程式開始==============================================================
+  camera_left();
   claw_open();
   delay(200);
   arm_down();
   delay(200);
-  int error = 0;
   int second_down_back_delay = 150; // 第二次下降後的後退時間
   int third_down_back_delay = 350;  // 第三次下降後的後退時間
   int all_kp = 42;
@@ -1154,38 +824,97 @@ void setup()
   int turn_turn_delay = 1000;
   int turn_turn_90_delay = 350;
 
-  p_fw_v2(3000);
+  float error = 0.0f;
   Padilla_trail(false, []()
-                { return (IR_L_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0);
-  turn_turn(0, 200, 1000); // 左轉0ms之後進行PID對齊1000ms
-  Padilla_trail(false, []()
-                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0);
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_kp, all_kd, 0, 80, 0, error);
   delay(50);
-  p_fw_v2(225);
-  turn_turn(0, turn_turn_90_delay, turn_turn_delay); // 左轉300ms之後進行PID對齊
+  stop();
+  turn_turn(0, 0, 1000); // 左轉0ms之後進行PID對齊1000ms
   Padilla_trail(false, []()
-                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0);
-  big_stop();
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_kp, all_kd, 0, 80, 0, error);
+  delay(50);
+  turn_turn(1, turn_turn_90_delay, turn_turn_delay); // 右轉300ms之後進行PID對齊800ms
+  Padilla_trail(false, []()
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_kp, all_kd, 0, 80, 0, error);
+  stop();
   pick_up();
-  p_right(90);
-  stop();
-  p_fw_v2(2500);
+
+  // //! 抵達右側已取貨，開始迴轉
+  turn_turn(1, 450, turn_turn_delay); // 右轉450ms之後進行PID對齊1000ms
   Padilla_trail(false, []()
-                { return (IR_L_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0);
-  turn_turn(0, 200, 1000); // 左轉0ms之後進行PID對齊1000ms
-  Padilla_trail(true, []()
-                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0);
-  // R: 1200, O: 3000, Y:4500
-  error = Padilla_trail(true, []()
-                        { return (false); }, all_kp, all_kd, 0, 80, 1350, error);
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_kp, all_kd, 0, 80, 0, error);
+  delay(50);
+  turn_turn(0, turn_turn_90_delay, turn_turn_delay); // 左轉350ms之後進行PID對齊800ms
+  Padilla_trail(false, []()
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_kp, all_kd, 0, 80, 0, error);
+  delay(100);
+  Padilla_trail(false, []()
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_kp, all_kd, 0, 80, 0, error);
+  delay(50);
   stop();
-  p_right(90);
   put_down();
-  p_left(145);
-  stop();
-  p_fw_v2(1500);
+  arm_up();
+  delay(200);
+  turn_turn(1, 450, turn_turn_delay); // 右轉450ms之後進行PID對齊1000ms
+  arm_down();
+  // //! ====== 中側程式 ======
+  for (int i = 0; i < 2; i++)
+  {
+    Padilla_trail(false, []()
+                  { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_kp, all_kd, 0, 80, 0, error);
+    delay(80);
+  }
   Padilla_trail(false, []()
-                { return (IR_LL_read() == 1 || IR_RR_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0);
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_kp, all_kd, 0, 80, 0, error);
+  stop();
+  pick_up();
+  // //!  抵達中側已取貨，開始迴轉
+  turn_turn(1, 450, turn_turn_delay);
+  for (int i = 0; i < 2; i++)
+  {
+    Padilla_trail(false, []()
+                  { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_kp, all_kd, 0, 80, 0, error);
+    delay(100);
+  }
+  Padilla_trail(false, []()
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_kp, all_kd, 0, 80, 0, error);
+  backward();
+  delay(second_down_back_delay);
+  stop();
+  put_down();
+  arm_up();
+  turn_turn(1, 450, turn_turn_delay);
+
+  // //! ====== 左側程式 ======
+
+  arm_down();
+  for (int i = 0; i < 2; i++)
+  {
+    Padilla_trail(false, []()
+                  { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_kp, all_kd, 0, 80, 0, error);
+    delay(80);
+  }
+  turn_turn(0, turn_turn_90_delay, turn_turn_delay); // 右轉350ms之後進行PID對齊800ms
+  Padilla_trail(false, []()
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_kp, all_kd, 0, 80, 0, error);
+  stop();
+  pick_up();
+  // //!  抵達左側已取貨，開始迴轉
+  turn_turn(1, 450, turn_turn_delay); // 右轉450ms之後進行PID對齊1000ms
+  Padilla_trail(false, []()
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_kp, all_kd, 0, 80, 0, error);
+  delay(50);
+  turn_turn(1, turn_turn_90_delay, turn_turn_delay); // 左轉350ms之後進行PID對齊800ms
+  Padilla_trail(false, []()
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_kp, all_kd, 0, 80, 0, error);
+  delay(100);
+  Padilla_trail(false, []()
+                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_kp, all_kd, 0, 80, 0, error);
+  backward();
+  delay(third_down_back_delay);
+  stop();
+  put_down();
+  stop();
 }
 
 void loop()
