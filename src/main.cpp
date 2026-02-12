@@ -1205,7 +1205,7 @@ void setup()
   int all_kp = 42;
   int all_kd = 1;
   int turn_turn_delay = 1000;
-  int turn_turn_90_delay = 350;
+  int turn_turn_90_delay = 250; // 350 -> 250 (電池滿電時)
 
   p_fw_v2(3000);
   Padilla_trail(false, []()
@@ -1232,8 +1232,11 @@ void setup()
                         { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0);
   if (ProductB == 0)
   {
+    leftEncoder.clearCount();
+    // Padilla_trail(true, []()
+    //               { return (false); }, all_kp, all_kd, 0, 80, 1200, error);
     Padilla_trail(true, []()
-                  { return (false); }, all_kp, all_kd, 0, 80, 1200, error);
+                  { return (leftEncoder.getCount() >= 3000); }, all_kp, all_kd, 0, 80, 0, error);
     stop();
     p_right(110);
     put_down();
@@ -1258,8 +1261,12 @@ void setup()
   }
   else if (ProductB == 1)
   {
+    leftEncoder.clearCount();
+    // Padilla_trail(true, []()
+    //               { return (false); }, all_kp, all_kd, 0, 80, 2450, error);
     Padilla_trail(true, []()
-                  { return (false); }, all_kp, all_kd, 0, 80, 2450, error);
+                  { return (leftEncoder.getCount() >= 7500); }, all_kp, all_kd, 0, 80, 0, error);
+    stop();
     stop();
     p_right(115);
     put_down();
@@ -1283,9 +1290,10 @@ void setup()
   }
   else
   {
+    leftEncoder.clearCount();
     turn_turn(1, turn_turn_90_delay, turn_turn_delay);
     Padilla_trail(true, []()
-                  { return (false); }, all_kp, all_kd, 0, 80, 1200, error);
+                  { return (leftEncoder.getCount() >= 3000); }, all_kp, all_kd, 0, 80, 0, error);
     stop();
     p_left(115);
     p_fw_v2(20);
@@ -1294,8 +1302,9 @@ void setup()
     backward();
     delay(50);
     turn_turn(1, 200, turn_turn_delay); // 左轉100ms之後進行PID對齊
+    leftEncoder.clearCount();
     Padilla_trail(true, []()
-                  { return (false); }, all_kp, all_kd, 0, 80, 1250, 0);
+                  { return (leftEncoder.getCount() >= 3000); }, all_kp, all_kd, 0, 80, 1250, 0);
     stop();
     turn_turn(0, 50, turn_turn_delay);
     motor(-200, 200);
