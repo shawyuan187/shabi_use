@@ -136,6 +136,7 @@ void test_encoder(); // 編碼馬達測試 (顯示編碼器計數值)
 void test_servo();   // 伺服馬達測試 (手臂和爪子動作)
 void test_motor();   // 馬達測試 (前進、後退、左轉、右轉)
 void test_ir();      // 紅外線感測器測試 (顯示感測器狀態)
+void test_forward(); // 前進測試 (測距離與編碼器計數關係)
 
 // --- 循跡功能 ---
 void trail(); // 循跡
@@ -330,6 +331,16 @@ void test_encoder()
   Serial.println(rightCount);
 
   delay(100);
+}
+void test_moving()
+{
+  p_fw_v2(10000);
+  delay(500);
+  p_right(90);
+  delay(500);
+  p_left(180);
+  delay(500);
+  p_right(90);
 }
 
 // --- 循跡功能 ---
@@ -1138,6 +1149,9 @@ void setup()
   ledcSetup(CH_R_FWD, PWM_FREQ, PWM_RES);
   ledcAttachPin(MOTOR_R_FWD, CH_R_FWD);
 
+  int ProductB = 2;
+  // 0 - 番茄 | 1 - 胡蘿蔔 | 2 - 玉米
+
   // PID OK 參數
   // 40, 0, 0, 80
   //======================================================================決賽程式開始（灰車）==============================================================
@@ -1172,20 +1186,90 @@ void setup()
   p_fw_v2(2500);
   Padilla_trail(false, []()
                 { return (IR_L_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0);
-  turn_turn(0, 200, 1000); // 左轉0ms之後進行PID對齊1000ms
-  Padilla_trail(true, []()
-                { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0);
-  // R: 1200, O: 3000, Y:4500
+  turn_turn(0, 200, 1000); // 左轉200ms之後進行PID對齊1000ms
   error = Padilla_trail(true, []()
-                        { return (false); }, all_kp, all_kd, 0, 80, 1350, error);
+                        { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0);
+  if (ProductB == 0)
+  {
+    Padilla_trail(true, []()
+                  { return (false); }, all_kp, all_kd, 0, 80, 1200, error);
+    stop();
+    p_right(110);
+    put_down();
+    delay(200);
+    backward();
+    delay(50);
+    p_left(180);
+    stop();
+    p_fw_v2(200);
+    while (!(IR_L_read() == 1 || IR_M_read() == 1 || IR_R_read() == 1))
+    {
+      forward();
+    }
+    p_fw_v2(50);
+    stop();
+    delay(1000);
+    turn_turn(1, 250, turn_turn_delay); // 右轉300ms之後進行PID對齊
+    // Padilla_trail(true, []()
+    //               { return (false); }, all_kp, all_kd, 0, 80, 1000, 0);
+    Padilla_trail(false, []()
+                  { return (IR_RR_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0);
+  }
+  else if (ProductB == 1)
+  {
+    Padilla_trail(true, []()
+                  { return (false); }, all_kp, all_kd, 0, 80, 2450, error);
+    stop();
+    p_right(115);
+    put_down();
+    delay(200);
+    backward();
+    delay(50);
+    turn_turn(1, 100, turn_turn_delay); // 右轉100ms之後進行PID對齊
+    motor(-200, 200);
+    delay(5);
+    p_left(10);
+    stop();
+    delay(500);
+    p_fw_v2(2500);
+    while (!(IR_RR_read() == 1))
+    {
+      forward();
+    }
+    turn_turn(1, 150, turn_turn_delay);
+    Padilla_trail(false, []()
+                  { return (IR_RR_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0);
+  }
+  else
+  {
+    turn_turn(1, turn_turn_90_delay, turn_turn_delay);
+    Padilla_trail(true, []()
+                  { return (false); }, all_kp, all_kd, 0, 80, 1200, error);
+    stop();
+    p_left(115);
+    p_fw_v2(20);
+    put_down();
+    delay(200);
+    backward();
+    delay(50);
+    turn_turn(1, 200, turn_turn_delay); // 左轉100ms之後進行PID對齊
+    Padilla_trail(true, []()
+                  { return (false); }, all_kp, all_kd, 0, 80, 1250, 0);
+    stop();
+    turn_turn(0, 50, turn_turn_delay);
+    motor(-200, 200);
+    delay(5);
+    p_left(20);
+    p_fw_v2(2500);
+    while (!(IR_RR_read() == 1))
+    {
+      forward();
+    }
+    turn_turn(1, 150, turn_turn_delay);
+    Padilla_trail(false, []()
+                  { return (IR_RR_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0);
+  }
   stop();
-  p_right(90);
-  put_down();
-  p_left(145);
-  stop();
-  p_fw_v2(1500);
-  Padilla_trail(false, []()
-                { return (IR_LL_read() == 1 || IR_RR_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0);
 }
 
 void loop()
