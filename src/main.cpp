@@ -20,6 +20,9 @@ Servo claw; // 爪子伺服馬達
 //===== 鏡頭斯服馬達物件 ======
 Servo camera; // 攝影機伺服馬達
 
+// ===== HUSKYLENS 物件 =====
+HUSKYLENS huskylens;
+
 // ===== 伺服馬達腳位定義 =====
 #define ARM_PIN 14    // 手臂伺服馬達腳位
 #define CLAW_PIN 15   // 爪子伺服馬達腳位
@@ -1101,6 +1104,35 @@ void camera_right()
   camera.write(CAMERA_RIGHT);
 }
 
+// --- 物品辨識 ---
+int color_detect()
+{
+  int target = -1;
+  while (target == -1)
+  {
+    huskylens.request();
+    if (huskylens.countBlocks() > 0)
+    {
+      if (huskylens.countBlocks(2) > 0)
+      {
+        target = 1; // 胡蘿蔔
+        return target;
+      }
+      else if (huskylens.countBlocks(1) > 0)
+      {
+        target = 0; // 番茄
+        return target;
+      }
+      else if (huskylens.countBlocks(3) > 0)
+      {
+        target = 2; // 玉米
+        return target;
+      }
+    }
+    delay(100);
+  }
+}
+
 // ===== 主程式 =====
 void setup()
 {
@@ -1149,7 +1181,14 @@ void setup()
   ledcSetup(CH_R_FWD, PWM_FREQ, PWM_RES);
   ledcAttachPin(MOTOR_R_FWD, CH_R_FWD);
 
-  int ProductB = 2;
+  Wire.begin();
+  while (!(huskylens.begin(Wire)))
+  {
+    Serial.println("HuskyLens not detected. Please check wiring.");
+    delay(100);
+  }
+
+  int ProductB = -1;
   // 0 - 番茄 | 1 - 胡蘿蔔 | 2 - 玉米
 
   // PID OK 參數
@@ -1180,6 +1219,8 @@ void setup()
   Padilla_trail(false, []()
                 { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0);
   big_stop();
+  delay(500);
+  ProductB = color_detect();
   pick_up();
   p_right(90);
   stop();
