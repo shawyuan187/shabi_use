@@ -726,7 +726,7 @@ void turn_turn(int direction, int delayTime, unsigned long confirmMs)
   delay(delayTime);
   // direction 0=左轉 對應 PID mode 0=左轉對齊
   // direction 1=右轉 對應 PID mode 1=右轉對齊
-  PID_spin_to_center(25, 12, 0, direction, confirmMs);
+  PID_spin_to_center(50, 0, 0, direction, confirmMs);
 }
 
 // ============ 速度閉環控制函式 ============
@@ -1181,12 +1181,12 @@ void setup()
   ledcSetup(CH_R_FWD, PWM_FREQ, PWM_RES);
   ledcAttachPin(MOTOR_R_FWD, CH_R_FWD);
 
-  Wire.begin();
-  while (!(huskylens.begin(Wire)))
-  {
-    Serial.println("HuskyLens not detected. Please check wiring.");
-    delay(100);
-  }
+  // Wire.begin();
+  // while (!(huskylens.begin(Wire)))
+  // {
+  //   Serial.println("HuskyLens not detected. Please check wiring.");
+  //   delay(100);
+  // }
 
   int ProductB = -1;
   // 0 - 番茄 | 1 - 胡蘿蔔 | 2 - 玉米
@@ -1208,15 +1208,30 @@ void setup()
   int turn_turn_90_delay = 250; // 350 -> 250 (電池滿電時)
 
   Padilla_trail(false, []()
-                { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, 20, 0, 0, 50, 0, error);
+                { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, 50, 35, 0, 80, 0, error);
 
-  delay(100);
+  delay(50);
   stop();
   delay(100);
-  turn_turn(1, 300, 500); // 左轉300ms之後進行PID對齊
-  // Padilla_trail(false, []()
-  //               { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, 30, 0, 0, 50, 0, error);
+  p_right(90);
+  delay(100);
+  Padilla_trail(false, []()
+                { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, 30, 0, 0, 50, 0, error);
 
+  stop();
+  delay(100);
+  p_left(110);
+
+  stop();
+  delay(100);
+  p_fw_v2(2500);
+  Padilla_trail(false, []()
+                { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, 30, 0, 0, 50, 0, error);
+
+  stop();
+  turn_turn(0, 450, turn_turn_delay);
+  Padilla_trail(false, []()
+                { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, all_kp, all_kd, 0, 50, 0, error);
   stop();
 }
 
