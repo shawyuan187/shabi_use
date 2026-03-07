@@ -31,7 +31,7 @@ HUSKYLENS huskylens;
 // ===== 伺服馬達角度設定 =====
 #define ARM_UP 120         // 手臂升起角度
 #define ARM_DOWN 40        // 手臂下降角度（取貨用）
-#define ARM_DOWN_UNLOAD 50 // 手臂下降角度（卸貨用，可獨立調整）
+#define ARM_DOWN_UNLOAD 60 // 手臂下降角度（卸貨用，可獨立調整）
 #define CLAW_OPEN 150      // 爪子開啟角度
 #define CLAW_CLOSE 45      // 爪子關閉角度
 #define CAMERA_FRONT 90    // 攝影機正前方角度
@@ -1084,6 +1084,12 @@ void pick_up()
 
 void put_down()
 {
+  arm_down_unload();
+  delay(200);
+  claw_open();
+  delay(200);
+  arm_up();
+  delay(200);
   claw_open();
   delay(200);
 }
@@ -1189,7 +1195,8 @@ void setup()
   }
 
   int ProductB = -1;
-  // 0 - 番茄 | 1 - 胡蘿蔔 | 2 - 玉米
+  int Product2 = -1;
+  // 0 - 番茄 | 1 - 胡蘿蔔 | 2 - 玉米 | -1 - 未知
 
   // PID OK 參數
   // 40, 0, 0, 80
@@ -1267,7 +1274,6 @@ void setup()
     Padilla_trail(true, []()
                   { return (leftEncoder.getCount() >= 7500); }, all_kp, all_kd, 0, 80, 0, error);
     stop();
-    stop();
     p_right(115);
     put_down();
     delay(200);
@@ -1277,21 +1283,27 @@ void setup()
     motor(-200, 200);
     delay(5);
     p_left(10);
+    leftEncoder.clearCount();
+    Padilla_trail(true, []()
+                  { return (leftEncoder.getCount() >= 400); }, all_kp, all_kd, 0, 80, 0, 0); // 些微前進
+
+    PID_spin_to_center(80, all_kp, all_kd, 2, 500);
     stop();
-    delay(500);
-    p_fw_v2(2500);
+    delay(200);
+
+    p_fw_v2(1500);
     while (!(IR_RR_read() == 1))
     {
       forward();
     }
-    turn_turn(1, 150, turn_turn_delay);
+    turn_turn(1, turn_turn_90_delay, turn_turn_delay);
     Padilla_trail(false, []()
                   { return (IR_RR_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0);
   }
   else
   {
     leftEncoder.clearCount();
-    turn_turn(1, turn_turn_90_delay, turn_turn_delay);
+    turn_turn(1, turn_turn_90_delay + 100, turn_turn_delay);
     Padilla_trail(true, []()
                   { return (leftEncoder.getCount() >= 3000); }, all_kp, all_kd, 0, 80, 0, error);
     stop();
@@ -1304,22 +1316,48 @@ void setup()
     turn_turn(1, 200, turn_turn_delay); // 左轉100ms之後進行PID對齊
     leftEncoder.clearCount();
     Padilla_trail(true, []()
-                  { return (leftEncoder.getCount() >= 3000); }, all_kp, all_kd, 0, 80, 1250, 0);
+                  { return (leftEncoder.getCount() >= 4000); }, all_kp, all_kd, 0, 80, 0, 0);
     stop();
-    turn_turn(0, 50, turn_turn_delay);
-    motor(-200, 200);
-    delay(5);
-    p_left(20);
-    p_fw_v2(2500);
+    // turn_turn(0, 50, turn_turn_delay);
+    // motor(-200, 200);
+    // delay(5);
+    // p_left(20);
+    PID_spin_to_center(80, all_kp, all_kd, 2, 1000);
+    stop();
+    delay(200);
+    p_left(13);
+    p_fw_v2(1000);
     while (!(IR_RR_read() == 1))
     {
       forward();
     }
-    turn_turn(1, 150, turn_turn_delay);
+    arm_down();
+    turn_turn(1, 300, turn_turn_delay);
+    stop();
+    delay(500);
     Padilla_trail(false, []()
                   { return (IR_RR_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0);
   }
   stop();
+  backward();
+  delay(100);
+  stop();
+  arm_down();
+  turn_turn(1, turn_turn_90_delay, turn_turn_delay);
+  leftEncoder.clearCount();
+  rightEncoder.clearCount();
+  Padilla_trail(false, []()
+                { return (leftEncoder.getCount() > 350 || rightEncoder.getCount() > 350); }, all_kp, all_kd, 0, 80, 0, error);
+  PID_spin_to_center(80, all_kp, all_kd, 2, 1000);
+  Product2 = color_detect();
+  stop();
+  delay(500);
+
+  Padilla_trail(false, []()
+                { return (IR_R_read() == 1 && IR_M_read() == 1 && IR_L_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0);
+  stop();
+  delay(500);
+  pick_up();
 }
 
 void loop()
