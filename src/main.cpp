@@ -149,6 +149,8 @@ float Padilla_trail(bool useFiveIR, bool (*exitCondition)(), float Kp, float Kd,
 void Padilla_right(int baseSpeed, int turnSpeedL, int turnSpeedR, float Kp, float Kd, bool useStop);
 void Padilla_left(int baseSpeed, int turnSpeedL, int turnSpeedR, float Kp, float Kd, bool useStop);
 
+int color_detect(); // 顏色識別 (使用 HUSKYLENS)
+
 // ===== 自訂函式區 =====
 // TODO: 請在此區塊建立你的自訂函式
 //
@@ -726,7 +728,7 @@ void turn_turn(int direction, int delayTime, unsigned long confirmMs)
   delay(delayTime);
   // direction 0=左轉 對應 PID mode 0=左轉對齊
   // direction 1=右轉 對應 PID mode 1=右轉對齊
-  PID_spin_to_center(50, 0, 0, direction, confirmMs);
+  PID_spin_to_center(30, 18, 0, direction, confirmMs);
 }
 
 // ============ 速度閉環控制函式 ============
@@ -1131,6 +1133,7 @@ int color_detect()
     }
     delay(100);
   }
+  return target; // 理論上不會執行到，但消除編譯器警告
 }
 
 // ===== 主程式 =====
@@ -1202,13 +1205,13 @@ void setup()
   int error = 0;
   int second_down_back_delay = 150; // 第二次下降後的後退時間
   int third_down_back_delay = 350;  // 第三次下降後的後退時間
-  int all_kp = 42;
-  int all_kd = 1;
+  int all_kp = 50;
+  int all_kd = 50;
   int turn_turn_delay = 1000;
   int turn_turn_90_delay = 250; // 350 -> 250 (電池滿電時)
 
   Padilla_trail(false, []()
-                { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, 50, 35, 0, 80, 0, error);
+                { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, all_kp, all_kd, 0, 80, 0, error);
 
   delay(50);
   stop();
@@ -1216,7 +1219,7 @@ void setup()
   p_right(90);
   delay(100);
   Padilla_trail(false, []()
-                { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, 30, 0, 0, 50, 0, error);
+                { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, 31, 0, 0, 50, 0, error);
 
   stop();
   delay(100);
@@ -1226,12 +1229,12 @@ void setup()
   delay(100);
   p_fw_v2(2500);
   Padilla_trail(false, []()
-                { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, 30, 0, 0, 50, 0, error);
+                { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, 31, 0, 0, 50, 0, error);
 
   stop();
   turn_turn(0, 450, turn_turn_delay);
   Padilla_trail(false, []()
-                { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, all_kp, all_kd, 0, 50, 0, error);
+                { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, all_kp, all_kd, 0, 80, 0, error);
   stop();
 }
 
