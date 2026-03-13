@@ -1212,8 +1212,10 @@ void setup()
   int all_kp = 42;
   int all_kd = 1;
   int turn_turn_delay = 1000;
-  int turn_turn_90_delay = 250; // 350 -> 250 (電池滿電時)
+  int turn_turn_90_delay = 250;                       // 350 -> 250 (電池滿電時)
+  int turn_turn_180_delay = turn_turn_90_delay + 300; // 350 -> 250 (電池滿電時)
 
+  /*
   p_fw_v2(3000);
   Padilla_trail(false, []()
                 { return (IR_L_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0);
@@ -1259,7 +1261,7 @@ void setup()
     }
     p_fw_v2(50);
     stop();
-    delay(1000);
+    delay(300);
     turn_turn(1, 250, turn_turn_delay); // 右轉300ms之後進行PID對齊
     // Padilla_trail(true, []()
     //               { return (false); }, all_kp, all_kd, 0, 80, 1000, 0);
@@ -1334,10 +1336,14 @@ void setup()
     arm_down();
     turn_turn(1, 300, turn_turn_delay);
     stop();
-    delay(500);
+    delay(300);
     Padilla_trail(false, []()
                   { return (IR_RR_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0);
   }
+  */
+  // 測試用程式，與前面if相等，完整版需刪除
+  Padilla_trail(false, []()
+                { return (IR_RR_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0);
   stop();
   backward();
   delay(100);
@@ -1356,8 +1362,91 @@ void setup()
   Padilla_trail(false, []()
                 { return (IR_R_read() == 1 && IR_M_read() == 1 && IR_L_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0);
   stop();
+  backward();
+  delay(200);
+  stop();
   delay(500);
   pick_up();
+
+  p_right(100);
+  p_fw_v2(1500);
+  while (!(IR_M_read() == 1))
+  {
+    forward();
+  }
+  stop();
+  PID_spin_to_center(80, all_kp, all_kd, 2, 1000);
+  Padilla_trail(false, []()
+                { return (IR_R_read() == 1); }, all_kp / 2, all_kd, 0, 80, 0, 0);
+  stop();
+  delay(500);
+  forward();
+  delay(300);
+  while (!(IR_LL_read() == 1))
+  {
+    forward();
+  }
+  if (Product2 == 0)
+  {
+    p_fw_v2(175);
+    motor(-200, 200);
+    delay(5);
+    p_left(50);
+    stop();
+    put_down();
+    delay(200);
+    backward();
+    delay(50);
+    p_left(180);
+    stop();
+    p_fw_v2(200);
+    while (!(IR_L_read() == 1 || IR_M_read() == 1 || IR_R_read() == 1))
+    {
+      forward();
+    }
+    p_fw_v2(50);
+    stop();
+    delay(300);
+    turn_turn(1, 250, turn_turn_delay); // 右轉300ms之後進行PID對齊
+  }
+  else if (Product2 == 1)
+  {
+    p_fw_v2(100);
+    motor(-200, 200);
+    delay(5);
+    turn_turn(0, turn_turn_90_delay, turn_turn_delay);
+    leftEncoder.clearCount();
+    rightEncoder.clearCount();
+    Padilla_trail(true, []()
+                  { return (leftEncoder.getCount() >= 3250 || rightEncoder.getCount() >= 3250); }, all_kp, all_kd, 0, 80, 0, 0);
+    stop();
+    p_right(115);
+    put_down();
+    delay(200);
+    backward();
+    delay(50);
+    turn_turn(1, 100, turn_turn_delay); // 右轉100ms之後進行PID對齊
+    motor(-200, 200);
+    delay(5);
+    p_left(10);
+    leftEncoder.clearCount();
+    Padilla_trail(true, []()
+                  { return (leftEncoder.getCount() >= 400); }, all_kp, all_kd, 0, 80, 0, 0); // 些微前進
+
+    PID_spin_to_center(80, all_kp, all_kd, 2, 500);
+    stop();
+    delay(200);
+
+    p_fw_v2(1500);
+    while (!(IR_RR_read() == 1))
+    {
+      forward();
+    }
+    turn_turn(1, turn_turn_90_delay, turn_turn_delay);
+  }
+  stop();
+  // Padilla_trail(false, []()
+  //               { return (IR_R_read() == 1 || IR_L_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0);
 }
 
 void loop()
