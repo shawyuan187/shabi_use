@@ -29,14 +29,14 @@ HUSKYLENS huskylens;
 #define CAMERA_PIN 25 // 攝影機伺服馬達腳位
 
 // ===== 伺服馬達角度設定 =====
-#define ARM_UP 120         // 手臂升起角度
-#define ARM_DOWN 40        // 手臂下降角度（取貨用）
-#define ARM_DOWN_UNLOAD 60 // 手臂下降角度（卸貨用，可獨立調整）
-#define CLAW_OPEN 150      // 爪子開啟角度
-#define CLAW_CLOSE 45      // 爪子關閉角度
-#define CAMERA_FRONT 90    // 攝影機正前方角度
-#define CAMERA_LEFT 180    // 攝影機左側角度
-#define CAMERA_RIGHT 0     // 攝影機右側角度
+#define ARM_UP 170          // 手臂升起角度
+#define ARM_DOWN 80         // 手臂下降角度（取貨用）
+#define ARM_DOWN_UNLOAD 100 // 手臂下降角度（卸貨用，可獨立調整）
+#define CLAW_OPEN 150       // 爪子開啟角度
+#define CLAW_CLOSE 45       // 爪子關閉角度
+#define CAMERA_FRONT 90     // 攝影機正前方角度
+#define CAMERA_LEFT 180     // 攝影機左側角度
+#define CAMERA_RIGHT 0      // 攝影機右側角度
 
 // ===== 編碼器腳位定義 =====
 #define LEFT_ENCODER_A 18  // 左編碼器 A 相
@@ -780,6 +780,114 @@ void speed_control(float L_target, float R_target)
   motor((int)L_pwm, (int)R_pwm);
 }
 
+void Solana(int Product, int kp, int kd, int turn_turn_90_delay, int turn_turn_delay)
+{
+  Padilla_trail(false, []()
+                { return (IR_R_read() == 1); }, kp / 2, kd, 0, 80, 0, 0);
+  stop();
+  delay(500);
+  forward();
+  delay(300);
+  while (!(IR_LL_read() == 1))
+  {
+    forward();
+  }
+  if (Product == 0)
+  {
+    p_fw_v2(175);
+    motor(-200, 200);
+    delay(5);
+    p_left(50);
+    stop();
+    put_down();
+    delay(200);
+    backward();
+    delay(50);
+    p_right(160);
+    stop();
+    p_fw_v2(200);
+    while (!(IR_L_read() == 1 || IR_M_read() == 1 || IR_R_read() == 1))
+    {
+      forward();
+    }
+    p_fw_v2(50);
+    stop();
+    delay(300);
+    turn_turn(1, 250, turn_turn_delay); // 右轉300ms之後進行PID對齊
+  }
+  else if (Product == 1)
+  {
+    p_fw_v2(50);
+    motor(-200, 200);
+    delay(5);
+    turn_turn(0, turn_turn_90_delay, turn_turn_delay);
+    leftEncoder.clearCount();
+    rightEncoder.clearCount();
+    Padilla_trail(true, []()
+                  { return (leftEncoder.getCount() >= 3250 || rightEncoder.getCount() >= 3250); }, kp, kd, 0, 80, 0, 0);
+    stop();
+    p_right(115);
+    put_down();
+    delay(200);
+    backward();
+    delay(50);
+    turn_turn(1, 100, turn_turn_delay); // 右轉100ms之後進行PID對齊
+    motor(-200, 200);
+    delay(5);
+    p_left(10);
+    leftEncoder.clearCount();
+    Padilla_trail(true, []()
+                  { return (leftEncoder.getCount() >= 400); }, kp, kd, 0, 80, 0, 0); // 些微前進
+
+    PID_spin_to_center(80, kp, kd, 2, 500);
+    stop();
+    delay(200);
+
+    p_fw_v2(1500);
+    while (!(IR_RR_read() == 1))
+    {
+      forward();
+    }
+    turn_turn(1, turn_turn_90_delay, turn_turn_delay);
+  }
+  else
+  {
+    p_fw_v2(50);
+    motor(-200, 200);
+    delay(5);
+    turn_turn(0, turn_turn_90_delay, turn_turn_delay);
+    leftEncoder.clearCount();
+    rightEncoder.clearCount();
+    Padilla_trail(true, []()
+                  { return (leftEncoder.getCount() >= 7000 || rightEncoder.getCount() >= 7000); }, kp, kd, 0, 80, 0, 0);
+    p_right(115);
+    p_fw_v2(20);
+    put_down();
+    delay(200);
+    backward();
+    delay(50);
+    turn_turn(1, 200, turn_turn_delay); // 左轉100ms之後進行PID對齊
+    leftEncoder.clearCount();
+    Padilla_trail(true, []()
+                  { return (leftEncoder.getCount() >= 4000); }, kp, kd, 0, 80, 0, 0);
+    stop();
+    PID_spin_to_center(80, kp, kd, 2, 1000);
+    stop();
+    delay(200);
+    p_left(13);
+    p_fw_v2(1000);
+    while (!(IR_RR_read() == 1))
+    {
+      forward();
+    }
+    arm_down();
+    turn_turn(1, 300, turn_turn_delay);
+    stop();
+    delay(300);
+  }
+  stop();
+}
+
 void p_fw_v2(int distance)
 {
   //* 新版前進函式：速度閉環控制
@@ -1195,7 +1303,9 @@ void setup()
   }
 
   int ProductB = -1;
+  int Product1 = -1;
   int Product2 = -1;
+  int Product3 = -1;
   // 0 - 番茄 | 1 - 胡蘿蔔 | 2 - 玉米 | -1 - 未知
 
   // PID OK 參數
@@ -1215,7 +1325,7 @@ void setup()
   int turn_turn_90_delay = 250;                       // 350 -> 250 (電池滿電時)
   int turn_turn_180_delay = turn_turn_90_delay + 300; // 350 -> 250 (電池滿電時)
 
-  /*
+  // /*
   p_fw_v2(3000);
   Padilla_trail(false, []()
                 { return (IR_L_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0);
@@ -1340,10 +1450,10 @@ void setup()
     Padilla_trail(false, []()
                   { return (IR_RR_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0);
   }
-  */
+  // */
   // 測試用程式，與前面if相等，完整版需刪除
-  Padilla_trail(false, []()
-                { return (IR_RR_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0);
+  // Padilla_trail(false, []()
+  //               { return (IR_RR_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0);
   stop();
   backward();
   delay(100);
@@ -1362,126 +1472,83 @@ void setup()
   Padilla_trail(false, []()
                 { return (IR_R_read() == 1 && IR_M_read() == 1 && IR_L_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0);
   stop();
-  backward();
-  delay(200);
-  stop();
+  // backward();
+  // delay(100);
+  // stop();
   delay(500);
   pick_up();
+  delay(200);
 
-  p_right(100);
-  p_fw_v2(1500);
+  p_right(105);
+  p_fw_v2(1250);
   while (!(IR_M_read() == 1))
   {
     forward();
   }
   stop();
-  PID_spin_to_center(80, all_kp, all_kd, 2, 1000);
+  PID_spin_to_center(80, all_kp, all_kd, 2, 2000);
+  Solana(Product2, all_kp, all_kd, turn_turn_90_delay, turn_turn_delay);
+  // 抵達C區中線
   Padilla_trail(false, []()
-                { return (IR_R_read() == 1); }, all_kp / 2, all_kd, 0, 80, 0, 0);
+                { return (IR_RR_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0);
+  stop();
+  backward();
+  delay(100);
+  stop();
+  arm_down();
+  turn_turn(0, turn_turn_90_delay, turn_turn_delay);
+  leftEncoder.clearCount();
+  rightEncoder.clearCount();
+  Padilla_trail(false, []()
+                { return (leftEncoder.getCount() > 350 || rightEncoder.getCount() > 350); }, all_kp, all_kd, 0, 80, 0, error);
+  PID_spin_to_center(80, all_kp, all_kd, 2, 1000);
+  Product1 = color_detect();
   stop();
   delay(500);
-  forward();
-  delay(300);
-  while (!(IR_LL_read() == 1))
+  Padilla_trail(false, []()
+                { return (IR_R_read() == 1 && IR_M_read() == 1 && IR_L_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0);
+  stop();
+  // backward();
+  // delay(200);
+  // stop();
+  delay(500);
+  pick_up();
+
+  p_left(120);
+  p_fw_v2(750);
+  while (!(IR_M_read() == 1))
   {
     forward();
   }
-  if (Product2 == 0)
-  {
-    p_fw_v2(175);
-    motor(-200, 200);
-    delay(5);
-    p_left(50);
-    stop();
-    put_down();
-    delay(200);
-    backward();
-    delay(50);
-    p_left(180);
-    stop();
-    p_fw_v2(200);
-    while (!(IR_L_read() == 1 || IR_M_read() == 1 || IR_R_read() == 1))
-    {
-      forward();
-    }
-    p_fw_v2(50);
-    stop();
-    delay(300);
-    turn_turn(1, 250, turn_turn_delay); // 右轉300ms之後進行PID對齊
-  }
-  else if (Product2 == 1)
-  {
-    p_fw_v2(100);
-    motor(-200, 200);
-    delay(5);
-    turn_turn(0, turn_turn_90_delay, turn_turn_delay);
-    leftEncoder.clearCount();
-    rightEncoder.clearCount();
-    Padilla_trail(true, []()
-                  { return (leftEncoder.getCount() >= 3250 || rightEncoder.getCount() >= 3250); }, all_kp, all_kd, 0, 80, 0, 0);
-    stop();
-    p_right(115);
-    put_down();
-    delay(200);
-    backward();
-    delay(50);
-    turn_turn(1, 100, turn_turn_delay); // 右轉100ms之後進行PID對齊
-    motor(-200, 200);
-    delay(5);
-    p_left(10);
-    leftEncoder.clearCount();
-    Padilla_trail(true, []()
-                  { return (leftEncoder.getCount() >= 400); }, all_kp, all_kd, 0, 80, 0, 0); // 些微前進
-
-    PID_spin_to_center(80, all_kp, all_kd, 2, 500);
-    stop();
-    delay(200);
-
-    p_fw_v2(1500);
-    while (!(IR_RR_read() == 1))
-    {
-      forward();
-    }
-    turn_turn(1, turn_turn_90_delay, turn_turn_delay);
-  }
-  else
-  {
-    p_fw_v2(100);
-    motor(-200, 200);
-    delay(5);
-    turn_turn(0, turn_turn_90_delay, turn_turn_delay);
-    leftEncoder.clearCount();
-    rightEncoder.clearCount();
-    Padilla_trail(true, []()
-                  { return (leftEncoder.getCount() >= 7000 || rightEncoder.getCount() >= 7000); }, all_kp, all_kd, 0, 80, 0, 0);
-    p_right(115);
-    p_fw_v2(20);
-    put_down();
-    delay(200);
-    backward();
-    delay(50);
-    turn_turn(1, 200, turn_turn_delay); // 左轉100ms之後進行PID對齊
-    leftEncoder.clearCount();
-    Padilla_trail(true, []()
-                  { return (leftEncoder.getCount() >= 4000); }, all_kp, all_kd, 0, 80, 0, 0);
-    stop();
-    PID_spin_to_center(80, all_kp, all_kd, 2, 1000);
-    stop();
-    delay(200);
-    p_left(13);
-    p_fw_v2(1000);
-    while (!(IR_RR_read() == 1))
-    {
-      forward();
-    }
-    arm_down();
-    turn_turn(1, 300, turn_turn_delay);
-    stop();
-    delay(300);
-  }
   stop();
+  PID_spin_to_center(80, all_kp, all_kd, 2, 2000);
+  Solana(Product1, all_kp, all_kd, turn_turn_90_delay, turn_turn_delay);
   Padilla_trail(false, []()
                 { return (IR_RR_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0);
+  // 越過黑線
+  Padilla_trail(false, []()
+                { return (IR_RR_read() == 0 && IR_LL_read() == 0); }, all_kp, all_kd, 0, 80, 0, 0);
+  arm_down();
+  PID_spin_to_center(80, all_kp, all_kd, 2, 1000);
+  Product3 = color_detect();
+  Padilla_trail(false, []()
+                { return (IR_R_read() == 1 && IR_M_read() == 1 && IR_L_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0);
+  stop();
+  delay(500);
+  pick_up();
+  turn_turn(1, turn_turn_180_delay, turn_turn_delay);
+  Padilla_trail(false, []()
+                { return (IR_RR_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0);
+  // 越過黑線
+  Padilla_trail(false, []()
+                { return (IR_RR_read() == 0 && IR_LL_read() == 0); }, all_kp, all_kd, 0, 80, 0, 0);
+  leftEncoder.clearCount();
+  rightEncoder.clearCount();
+  Padilla_trail(false, []()
+                { return (leftEncoder.getCount() >= 3000 || rightEncoder.getCount() >= 3000); }, all_kp, all_kd, 0, 80, 0, 0);
+  PID_spin_to_center(80, all_kp, all_kd, 2, 2000);
+  Solana(Product3, all_kp, all_kd, turn_turn_90_delay, turn_turn_delay);
+  stop();
 }
 
 void loop()
