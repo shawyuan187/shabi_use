@@ -1220,10 +1220,11 @@ void setup()
   delay(100);
   Padilla_trail(false, []()
                 { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, 31, 0, 0, 50, 0, error);
+  p_fw_v2(100);
 
   stop();
   delay(100);
-  p_left(95);
+  p_left(110);
 
   stop();
   delay(100);
@@ -1242,7 +1243,7 @@ void setup()
   rightEncoder.clearCount();
   Padilla_trail(false, []()
                 { return (leftEncoder.getCount() >= 3000 || rightEncoder.getCount() >= 3000); }, all_kp, all_kd, 0, 80, 0, error);
-  p_right(130);
+  p_right(150);
   // stop();
   // delay(100);
   // p_left(80);
@@ -1261,6 +1262,20 @@ void setup()
 
   // p_right(130);
   // //!  put down
+
+  turn_turn(0, turn_turn_90_delay, turn_turn_delay);
+  leftEncoder.clearCount();
+  rightEncoder.clearCount();
+  Padilla_trail(false, []()
+                { return (leftEncoder.getCount() >= 5000) || rightEncoder.getCount() >= 5000; }, all_kp, all_kd, 0, 80, 0, error);
+  stop();
+  PID_spin_to_center(50, all_kp / 2, all_kd, 2, 2000);
+  p_fw_v2(2000);
+  while (!(IR_M_read() == 1))
+  {
+    forward();
+  }
+
   // stop();
   // delay(100);
   // p_left(78);
