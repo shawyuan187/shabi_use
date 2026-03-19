@@ -1206,7 +1206,7 @@ void setup()
   int second_down_back_delay = 150; // 第二次下降後的後退時間
   int third_down_back_delay = 350;  // 第三次下降後的後退時間
   int all_kp = 50;
-  int all_kd = 50;
+  int all_kd = 65;
   int turn_turn_delay = 1000;
   int turn_turn_90_delay = 250; // 350 -> 250 (電池滿電時)
 
