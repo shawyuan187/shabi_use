@@ -33,7 +33,7 @@ HUSKYLENS huskylens;
 #define ARM_DOWN 40        // 手臂下降角度（取貨用）
 #define ARM_DOWN_UNLOAD 50 // 手臂下降角度（卸貨用，可獨立調整）
 #define CLAW_OPEN 150      // 爪子開啟角度
-#define CLAW_CLOSE 45      // 爪子關閉角度
+#define CLAW_CLOSE 50      // 爪子關閉角度
 #define CAMERA_FRONT 90    // 攝影機正前方角度
 #define CAMERA_LEFT 180    // 攝影機左側角度
 #define CAMERA_RIGHT 0     // 攝影機右側角度
@@ -160,8 +160,8 @@ int color_detect(); // 顏色識別 (使用 HUSKYLENS)
 // 用法：auto_trail(false, []() { return ...; }, 80, 0, error);
 float auto_trail(bool useFiveIR, bool (*exitCondition)(), int spd, unsigned long ms, float lastError)
 {
-  const float KP_RATIO = 50.0f / 80.0f;  // 0.625
-  const float KD_RATIO = 65.0f / 80.0f;  // 0.8125
+  const float KP_RATIO = 55.0f / 80.0f; // 0.625
+  const float KD_RATIO = 55.0f / 80.0f; // 0.8125
   float kp = spd * KP_RATIO;
   float kd = spd * KD_RATIO;
   return Padilla_trail(useFiveIR, exitCondition, kp, kd, 0, spd, ms, lastError);
@@ -231,7 +231,7 @@ void b_Left()
 }
 void b_Right()
 {
-  motor(60, -110); // 馬達速度-100->-110
+  motor(60, -110); // 60, -110
 }
 void big_stop()
 {
@@ -1216,76 +1216,56 @@ void setup()
   int error = 0;
   int second_down_back_delay = 150; // 第二次下降後的後退時間
   int third_down_back_delay = 350;  // 第三次下降後的後退時間
-  int all_spd = 80;  // 主循跡速度，改這一個數字 Kp/Kd 自動跟隨
-  int slow_spd = 50; // 慢速循跡速度（精準轉彎用）
-  int turn_turn_delay = 1000;
-  int turn_turn_90_delay = 250; // 350 -> 250 (電池滿電時)
+  int all_spd = 80;                 // 主循跡速度，改這一個數字 Kp/Kd 自動跟隨
+  int slow_spd = 50;                // 慢速循跡速度（精準轉彎用）
+  int turn_turn_90_delay = 250;     // 350 -> 250 (電池滿電時)
 
   auto_trail(false, []()
-                { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, all_spd, 0, error);
-
-  delay(50);
-  stop();
-  delay(100);
-  p_right(90);
-  delay(100);
-  auto_trail(false, []()
-                { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, slow_spd, 0, error);
-  p_fw_v2(100);
-
-  stop();
-  delay(100);
-  p_left(110);
-
-  stop();
-  delay(100);
-  p_fw_v2(3750);
-  while (!(IR_R_read() == 1))
-  {
-    forward();
-  }
-  // Padilla_trail(false, []()
-  //               { return IR_M_read() == 1; }, 31, 0, 0, 50, 0, error);
-
-  turn_turn(0, 140, turn_turn_delay);
-  error = auto_trail(false, []()
-                        { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_spd, 0, 0);
-  leftEncoder.clearCount();
-  rightEncoder.clearCount();
-  auto_trail(false, []()
-                { return (leftEncoder.getCount() >= 3000 || rightEncoder.getCount() >= 3000); }, all_spd, 0, error);
-  p_right(150);
+             { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, all_spd, 0, error);
   // stop();
   // delay(100);
-  // p_left(80);
-  // stop();
-  // delay(100);
-  // error = 0;
-  // Padilla_trail(false, []()
-  //               { return (false); }, 10, 0, 0, 30, 500, error);
-  // Padilla_trail(false, []()
-  //               { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, all_kp, all_kd, 0, 80, 0, error);
-  // delay(50);
-  // Padilla_trail(false, []()
-  //               { return (false); }, all_kp, all_kd, 0, 80, 1100, error);
-  // stop();
-  // delay(100);
-
-  // p_right(130);
-  // //!  put down
-
-  turn_turn(0, turn_turn_90_delay, turn_turn_delay);
-  leftEncoder.clearCount();
-  rightEncoder.clearCount();
+  turn_turn(1, 350, 1000);
   auto_trail(false, []()
-                { return (leftEncoder.getCount() >= 5000) || rightEncoder.getCount() >= 5000; }, all_spd, 0, error);
+             { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, slow_spd, 0, error);
+
   stop();
-  PID_spin_to_center(50, (int)(all_spd * 50.0f / 80.0f / 2), (int)(all_spd * 65.0f / 80.0f), 2, 2000);
-  p_fw_v2(2000);
-  while (!(IR_M_read() == 1))
-  {
-    forward();
-  }
+  delay(100);
+  // * 夾取第一個貨物
+  pick_up();
+  // p_fw_v2(100);
+  // stop();
+  // delay(100);
+  // p_left(110);
+
+  // stop();
+  // delay(100);
+  // p_fw_v2(3750);
+  // while (!(IR_R_read() == 1))
+  // {
+  //   forward();
+  // }
+  // turn_turn(0, 140, turn_turn_delay);
+  // error = auto_trail(false, []()
+  //                    { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_spd, 0, 0);
+  // leftEncoder.clearCount();
+  // rightEncoder.clearCount();
+  // auto_trail(false, []()
+  //            { return (leftEncoder.getCount() >= 3000 || rightEncoder.getCount() >= 3000); }, all_spd, 0, error);
+  // p_right(150);
+  // // //!  put down
+
+  // turn_turn(0, turn_turn_90_delay, turn_turn_delay);
+  // leftEncoder.clearCount();
+  // rightEncoder.clearCount();
+  // auto_trail(false, []()
+  //            { return (leftEncoder.getCount() >= 5000) || rightEncoder.getCount() >= 5000; }, all_spd, 0, error);
+  // stop();
+  // PID_spin_to_center(50, (int)(all_spd * 50.0f / 80.0f / 2), (int)(all_spd * 65.0f / 80.0f), 2, 2000);
+  // p_fw_v2(2000);
+  // while (!(IR_M_read() == 1))
+  // {
+  //   forward();
+  // }
 
   // stop();
   // delay(100);
