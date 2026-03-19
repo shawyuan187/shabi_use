@@ -31,7 +31,7 @@ HUSKYLENS huskylens;
 // ===== 伺服馬達角度設定 =====
 #define ARM_UP 120         // 手臂升起角度
 #define ARM_DOWN 40        // 手臂下降角度（取貨用）
-#define ARM_DOWN_UNLOAD 50 // 手臂下降角度（卸貨用，可獨立調整）
+#define ARM_DOWN_UNLOAD 70 // 手臂下降角度（卸貨用，可獨立調整）
 #define CLAW_OPEN 150      // 爪子開啟角度
 #define CLAW_CLOSE 50      // 爪子關閉角度
 #define CAMERA_FRONT 90    // 攝影機正前方角度
@@ -1224,9 +1224,10 @@ void setup()
 
   auto_trail(false, []()
              { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, all_spd, 0, error);
-  // stop();
-  // delay(100);
-  turn_turn(1, 350, 1000);
+  stop();
+  delay(100);
+  p_right(50);
+  turn_turn(1, 0, 1000);
   auto_trail(false, []()
              { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, slow_spd, 0, error);
 
@@ -1249,7 +1250,7 @@ void setup()
   turn_turn(0, 140, 1000); // ! 已經回到黑線上
   auto_trail(false, []()
              { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, all_spd, 0, error);
-  delay(50); // !已經到卸貨區十字路口
+  // !已經到卸貨區十字路口
   turn_turn(0, 0, 1000);
 
   // *準備打包成不目標物的指令
@@ -1259,62 +1260,33 @@ void setup()
              { return (leftEncoder.getCount() >= 3000 || rightEncoder.getCount() >= 3000); }, all_spd, 0, error);
 
   // *準備打包成不目標物的指令
-  p_right(150);
-  put_down();
-
-  // turn_turn(0, turn_turn_90_delay, turn_turn_delay);
-  // leftEncoder.clearCount();
-  // rightEncoder.clearCount();
-  // auto_trail(false, []()
-  //            { return (leftEncoder.getCount() >= 5000) || rightEncoder.getCount() >= 5000; }, all_spd, 0, error);
-  // stop();
-  // PID_spin_to_center(50, (int)(all_spd * 50.0f / 80.0f / 2), (int)(all_spd * 65.0f / 80.0f), 2, 2000);
-  // p_fw_v2(2000);
-  // while (!(IR_M_read() == 1))
-  // {
-  //   forward();
-  // }
-
-  // stop();
-  // delay(100);
-  // p_left(78);
-  // stop();
-  // delay(100);
-  // Padilla_trail(false, []()
-  //               { return (false); }, all_kp, all_kd, 0, 80, 1600, error);
-  // p_fw_v2(2000);
-
-  // Padilla_trail(false, []()
-  //               { return IR_M_read() == 1; }, all_kp, all_kd, 0, 50, 0, error);
-  // delay(100);
-  // turn_turn(0, 140, 10000);
-  // stop();
-  // delay(100);
-  // stop();
-
-  // Padilla_trail(false, []()
-  //               { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, all_kp, all_kd, 0, 80, 0, error);
-
-  // delay(50);
-  // stop();
-  // delay(100);
-  // p_left(88);
-  // delay(100);
-  // Padilla_trail(false, []()
-  //               { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, 31, 0, 0, 50, 0, error);
-  // stop();
-  // delay(100);
-  // stop();
-  // delay(100);
-  // p_left(110);
-
-  // stop();
-  // delay(100);
-  // p_fw_v2(1300);
-  // Padilla_trail(false, []()
-  //               { return IR_LL_read() == 1; }, 31, 0, 0, 50, 0, error);
+  // !卸貨指令等待調整
   stop();
   delay(100);
+  p_right(150);
+  put_down();
+  arm_up();
+  p_left(150);
+  turn_turn(0, 300, 1500);
+  // !卸貨指令等待調整
+
+  arm_down();
+  // *已經卸貨完畢回到B區十字路口
+  auto_trail(false, []()
+             { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, all_spd, 0, error);
+  delay(50);
+  //* 前往第三個目標物
+  auto_trail(false, []()
+             { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, all_spd, 0, error);
+  stop();
+  delay(100);
+  p_left(50);
+  turn_turn(0, 0, 1000);
+  auto_trail(false, []()
+             { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, all_spd, 0, error);
+  stop();
+  delay(100);
+  pick_up();
 }
 
 void loop()
