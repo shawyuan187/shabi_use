@@ -148,11 +148,24 @@ void trail(); // 循跡
 float Padilla_trail(bool useFiveIR, bool (*exitCondition)(), float Kp, float Kd, float Ki, int baseSpeed, unsigned long ms, float lastError);
 void Padilla_right(int baseSpeed, int turnSpeedL, int turnSpeedR, float Kp, float Kd, bool useStop);
 void Padilla_left(int baseSpeed, int turnSpeedL, int turnSpeedR, float Kp, float Kd, bool useStop);
+float auto_trail(bool useFiveIR, bool (*exitCondition)(), int spd, unsigned long ms, float lastError); // 自動依 spd 計算 Kp/Kd
 
 int color_detect(); // 顏色識別 (使用 HUSKYLENS)
 
 // ===== 自訂函式區 =====
 // TODO: 請在此區塊建立你的自訂函式
+
+// ===== auto_trail：自動依 spd 等比計算 Kp/Kd =====
+// 比例來自最優實測：Kp=50/Kd=65/spd=80
+// 用法：auto_trail(false, []() { return ...; }, 80, 0, error);
+float auto_trail(bool useFiveIR, bool (*exitCondition)(), int spd, unsigned long ms, float lastError)
+{
+  const float KP_RATIO = 50.0f / 80.0f;  // 0.625
+  const float KD_RATIO = 65.0f / 80.0f;  // 0.8125
+  float kp = spd * KP_RATIO;
+  float kd = spd * KD_RATIO;
+  return Padilla_trail(useFiveIR, exitCondition, kp, kd, 0, spd, ms, lastError);
+}
 //
 // 【函式建立格式】
 //   回傳型別 函式名稱(參數列表)
@@ -1203,30 +1216,21 @@ void setup()
   int error = 0;
   int second_down_back_delay = 150; // 第二次下降後的後退時間
   int third_down_back_delay = 350;  // 第三次下降後的後退時間
-  // ===== PID 比例係數（依最優實測 Kp=50/Kd=65/spd=80 計算）=====
-  const float KP_RATIO = 50.0f / 80.0f;  // 0.625
-  const float KD_RATIO = 65.0f / 80.0f;  // 0.8125
-  // 主循跡速度：改這一個數字，Kp/Kd 自動跟隨
-  int all_spd = 80;
-  int all_kp = (int)(all_spd * KP_RATIO); // = 50
-  int all_kd = (int)(all_spd * KD_RATIO); // = 65
-  // 慢速循跡速度（精準轉彎用）
-  int slow_spd = 50;
-  int slow_kp = (int)(slow_spd * KP_RATIO); // = 31
-  int slow_kd = (int)(slow_spd * KD_RATIO); // = 40
+  int all_spd = 80;  // 主循跡速度，改這一個數字 Kp/Kd 自動跟隨
+  int slow_spd = 50; // 慢速循跡速度（精準轉彎用）
   int turn_turn_delay = 1000;
   int turn_turn_90_delay = 250; // 350 -> 250 (電池滿電時)
 
-  Padilla_trail(false, []()
-                { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, all_kp, all_kd, 0, 80, 0, error);
+  auto_trail(false, []()
+                { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, all_spd, 0, error);
 
   delay(50);
   stop();
   delay(100);
   p_right(90);
   delay(100);
-  Padilla_trail(false, []()
-                { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, slow_kp, slow_kd, 0, slow_spd, 0, error);
+  auto_trail(false, []()
+                { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, slow_spd, 0, error);
   p_fw_v2(100);
 
   stop();
@@ -1244,12 +1248,12 @@ void setup()
   //               { return IR_M_read() == 1; }, 31, 0, 0, 50, 0, error);
 
   turn_turn(0, 140, turn_turn_delay);
-  error = Padilla_trail(false, []()
-                        { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0);
+  error = auto_trail(false, []()
+                        { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_spd, 0, 0);
   leftEncoder.clearCount();
   rightEncoder.clearCount();
-  Padilla_trail(false, []()
-                { return (leftEncoder.getCount() >= 3000 || rightEncoder.getCount() >= 3000); }, all_kp, all_kd, 0, 80, 0, error);
+  auto_trail(false, []()
+                { return (leftEncoder.getCount() >= 3000 || rightEncoder.getCount() >= 3000); }, all_spd, 0, error);
   p_right(150);
   // stop();
   // delay(100);
@@ -1273,10 +1277,10 @@ void setup()
   turn_turn(0, turn_turn_90_delay, turn_turn_delay);
   leftEncoder.clearCount();
   rightEncoder.clearCount();
-  Padilla_trail(false, []()
-                { return (leftEncoder.getCount() >= 5000) || rightEncoder.getCount() >= 5000; }, all_kp, all_kd, 0, 80, 0, error);
+  auto_trail(false, []()
+                { return (leftEncoder.getCount() >= 5000) || rightEncoder.getCount() >= 5000; }, all_spd, 0, error);
   stop();
-  PID_spin_to_center(50, all_kp / 2, all_kd, 2, 2000);
+  PID_spin_to_center(50, (int)(all_spd * 50.0f / 80.0f / 2), (int)(all_spd * 65.0f / 80.0f), 2, 2000);
   p_fw_v2(2000);
   while (!(IR_M_read() == 1))
   {
