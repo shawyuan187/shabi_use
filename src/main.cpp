@@ -1237,11 +1237,14 @@ void setup()
   delay(100);
   p_fw_v2(3500);
   stop();
-  // while (!(IR_R_read() == 1))
-  // {
-  //   forward();
-  // }
-  // turn_turn(0, 140, turn_turn_delay);
+  while (!(IR_M_read() == 1))
+  {
+    forward();
+  }
+  stop();
+  delay(100);
+  turn_turn(0, 140, 1000);
+
   // error = auto_trail(false, []()
   //                    { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_spd, 0, 0);
   // leftEncoder.clearCount();
