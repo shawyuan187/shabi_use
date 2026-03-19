@@ -1232,14 +1232,11 @@ void setup()
   delay(100);
   // * 夾取第一個貨物
   pick_up();
-  // p_fw_v2(100);
-  // stop();
-  // delay(100);
-  // p_left(110);
-
-  // stop();
-  // delay(100);
-  // p_fw_v2(3750);
+  p_left(150);
+  stop();
+  delay(100);
+  p_fw_v2(3500);
+  stop();
   // while (!(IR_R_read() == 1))
   // {
   //   forward();
