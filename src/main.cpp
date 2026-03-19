@@ -161,7 +161,7 @@ int color_detect(); // 顏色識別 (使用 HUSKYLENS)
 float auto_trail(bool useFiveIR, bool (*exitCondition)(), int spd, unsigned long ms, float lastError)
 {
   const float KP_RATIO = 55.0f / 80.0f; // 0.625
-  const float KD_RATIO = 55.0f / 80.0f; // 0.8125
+  const float KD_RATIO = 65.0f / 80.0f; // 0.8125
   float kp = spd * KP_RATIO;
   float kd = spd * KD_RATIO;
   return Padilla_trail(useFiveIR, exitCondition, kp, kd, 0, spd, ms, lastError);
@@ -1099,6 +1099,8 @@ void pick_up()
 
 void put_down()
 {
+  arm_down_unload();
+  delay(200);
   claw_open();
   delay(200);
 }
@@ -1232,7 +1234,7 @@ void setup()
   delay(100);
   // * 夾取第一個貨物
   pick_up();
-  p_left(150);
+  p_left(140);
   stop();
   delay(100);
   // * 出軌直接衝到閘門前的路線準備循跡
@@ -1245,15 +1247,20 @@ void setup()
   stop();
   delay(100);
   turn_turn(0, 140, 1000); // ! 已經回到黑線上
+  auto_trail(false, []()
+             { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, all_spd, 0, error);
+  delay(50); // !已經到卸貨區十字路口
+  turn_turn(0, 0, 1000);
 
-  // error = auto_trail(false, []()
-  //                    { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_spd, 0, 0);
-  // leftEncoder.clearCount();
-  // rightEncoder.clearCount();
-  // auto_trail(false, []()
-  //            { return (leftEncoder.getCount() >= 3000 || rightEncoder.getCount() >= 3000); }, all_spd, 0, error);
-  // p_right(150);
-  // // //!  put down
+  // *準備打包成不目標物的指令
+  leftEncoder.clearCount();
+  rightEncoder.clearCount();
+  auto_trail(false, []()
+             { return (leftEncoder.getCount() >= 3000 || rightEncoder.getCount() >= 3000); }, all_spd, 0, error);
+
+  // *準備打包成不目標物的指令
+  p_right(150);
+  put_down();
 
   // turn_turn(0, turn_turn_90_delay, turn_turn_delay);
   // leftEncoder.clearCount();
