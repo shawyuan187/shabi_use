@@ -1184,18 +1184,16 @@ void setup()
   ledcSetup(CH_R_FWD, PWM_FREQ, PWM_RES);
   ledcAttachPin(MOTOR_R_FWD, CH_R_FWD);
 
-  // Wire.begin();
-  // while (!(huskylens.begin(Wire)))
-  // {
-  //   Serial.println("HuskyLens not detected. Please check wiring.");
-  //   delay(100);
-  // }
+  Wire.begin();
+  while (!(huskylens.begin(Wire)))
+  {
+    Serial.println("HuskyLens not detected. Please check wiring.");
+    delay(100);
+  }
 
   int ProductB = -1;
   // 0 - 番茄 | 1 - 胡蘿蔔 | 2 - 玉米
 
-  // PID OK 參數
-  // 40, 0, 0, 80
   //======================================================================決賽程式開始（灰車）==============================================================
   camera_front();
   claw_open();
@@ -1205,8 +1203,17 @@ void setup()
   int error = 0;
   int second_down_back_delay = 150; // 第二次下降後的後退時間
   int third_down_back_delay = 350;  // 第三次下降後的後退時間
-  int all_kp = 50;
-  int all_kd = 65;
+  // ===== PID 比例係數（依最優實測 Kp=50/Kd=65/spd=80 計算）=====
+  const float KP_RATIO = 50.0f / 80.0f;  // 0.625
+  const float KD_RATIO = 65.0f / 80.0f;  // 0.8125
+  // 主循跡速度：改這一個數字，Kp/Kd 自動跟隨
+  int all_spd = 80;
+  int all_kp = (int)(all_spd * KP_RATIO); // = 50
+  int all_kd = (int)(all_spd * KD_RATIO); // = 65
+  // 慢速循跡速度（精準轉彎用）
+  int slow_spd = 50;
+  int slow_kp = (int)(slow_spd * KP_RATIO); // = 31
+  int slow_kd = (int)(slow_spd * KD_RATIO); // = 40
   int turn_turn_delay = 1000;
   int turn_turn_90_delay = 250; // 350 -> 250 (電池滿電時)
 
@@ -1219,7 +1226,7 @@ void setup()
   p_right(90);
   delay(100);
   Padilla_trail(false, []()
-                { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, 31, 0, 0, 50, 0, error);
+                { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, slow_kp, slow_kd, 0, slow_spd, 0, error);
   p_fw_v2(100);
 
   stop();
