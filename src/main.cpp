@@ -107,9 +107,10 @@ int IR_R_read();  // 讀取右側紅外線感測器
 int IR_RR_read(); // 讀取最右側紅外線感測器
 
 // --- 馬達控制 ---
-void motor(int L, int R);                                                               // 馬達控制 (L:左輪速度, R:右輪速度, 正值前進/負值後退)
-void forward();                                                                         // 前進
-void backward();                                                                        // 後退
+void motor(int L, int R); // 馬達控制 (L:左輪速度, R:右輪速度, 正值前進/負值後退)
+void forward();           // 前進
+void backward();
+void backward_unload();                                                                 // 後退
 void m_Left();                                                                          // 左轉 (左輪停止)
 void m_Right();                                                                         // 右轉 (右輪停止)
 void b_Left();                                                                          // 急左轉 (左輪反轉)
@@ -203,6 +204,10 @@ void forward()
 void backward()
 {
   motor(-130, -150); // 馬達速度-120->-150
+}
+void backward_unload()
+{
+  motor(-50, -200);
 }
 void m_Left()
 {
@@ -1193,7 +1198,7 @@ void setup()
     delay(100);
   }
 
-  int ProductB = -1;
+  int ProductA = -1;
   // 0 - 番茄 | 1 - 胡蘿蔔 | 2 - 玉米
 
   //======================================================================決賽程式開始（灰車）==============================================================
@@ -1203,27 +1208,33 @@ void setup()
   arm_down();
   delay(200);
   int error = 0;
-  int second_down_back_delay = 150; // 第二次下降後的後退時間
-  int third_down_back_delay = 350;  // 第三次下降後的後退時間
-  int all_spd = 80;                 // 主循跡速度，改這一個數字 Kp/Kd 自動跟隨
-  int slow_spd = 50;                // 慢速循跡速度（精準轉彎用）
-  int turn_turn_90_delay = 250;     // 350 -> 250 (電池滿電時)
+  int all_spd = 80;             // 主循跡速度，改這一個數字 Kp/Kd 自動跟隨
+  int slow_spd = 50;            // 慢速循跡速度（精準轉彎用）
+  int turn_turn_90_delay = 350; // 350 -> 250 (電池滿電時)
 
   // 第一個 PID：維持比例縮放參數（Kp/Kd 隨 all_spd 等比縮放）
+  error = Padilla_trail(false, []()
+                        { return (false); }, 55, 65, 0, all_spd, 1000, error); // 50 -> 70
   Padilla_trail(false, []()
-                { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, 55, 65, 0, slow_spd, 0, error);
+                { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, 55, 65, 0, all_spd, 0, error);
   stop();
   delay(100);
-  p_right(60);
-  turn_turn(1, 0, 1000);
+  turn_turn(1, turn_turn_90_delay, 1000);
   Padilla_trail(false, []()
                 { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, 50, 65, 0, slow_spd, 0, error);
 
   stop();
   delay(200);
+  ProductA = color_detect();
   // * 夾取第一個貨物
   pick_up();
-  p_left(130); // !需要調整
+  if (ProductA == 0) // 番茄
+    p_left(120);
+  else if (ProductA == 1) // 胡蘿蔔
+    p_left(110);
+  else if (ProductA == 2) // 玉米
+    p_left(100);
+  // p_left(100); // !需要調整
   stop();
   delay(100);
   // * 出軌直接衝到閘門前的路線準備循跡
@@ -1235,7 +1246,7 @@ void setup()
   }
   stop();
   delay(100);
-  turn_turn(0, 140, 1000); // ! 已經回到黑線上
+  turn_turn(0, 100, 1000); // ! 已經回到黑線上
   Padilla_trail(false, []()
                 { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, 50, 65, 0, all_spd, 0, error);
   // !已經到卸貨區十字路口
@@ -1252,18 +1263,27 @@ void setup()
   // !卸貨指令等待調整
   stop();
   delay(100);
-  p_right(150);
+  rightEncoder.clearCount();
+  while (!(rightEncoder.getCount() <= -2000))
+  {
+    motor(-30, -100);
+  }
+  stop();
+  delay(100);
   put_down();
   arm_up();
-  p_left(150);
-  turn_turn(0, 300, 1500);
+  p_left(80);
+  PID_spin_to_center(50, 50, 65, 2, 500); // 左轉對齊+驗證500ms
   // !卸貨指令等待調整
 
   arm_down();
   // *已經卸貨完畢回到B區十字路口
+  leftEncoder.clearCount();
+  rightEncoder.clearCount();
   Padilla_trail(false, []()
-                { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, 50, 65, 0, all_spd, 0, error);
+                { return (leftEncoder.getCount() >= 3000 || rightEncoder.getCount() >= 3000); }, 50, 65, 0, all_spd, 0, error);
   delay(50);
+  delay(50000);
   //* 前往第三個目標物
   Padilla_trail(false, []()
                 { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, 50, 65, 0, all_spd, 0, error);
