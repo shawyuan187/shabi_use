@@ -1235,6 +1235,7 @@ void setup()
   p_left(150);
   stop();
   delay(100);
+  // * 出軌直接衝到閘門前的路線準備循跡
   p_fw_v2(3500);
   stop();
   while (!(IR_M_read() == 1))
@@ -1243,7 +1244,7 @@ void setup()
   }
   stop();
   delay(100);
-  turn_turn(0, 140, 1000);
+  turn_turn(0, 140, 1000); // ! 已經回到黑線上
 
   // error = auto_trail(false, []()
   //                    { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_spd, 0, 0);
