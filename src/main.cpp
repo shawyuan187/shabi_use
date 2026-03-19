@@ -799,6 +799,10 @@ void Solana(int Product, int kp, int kd, int turn_turn_90_delay, int turn_turn_d
     delay(5);
     p_left(50);
     stop();
+    backward(); //! 下面四行需要調整
+    delay(100);
+    stop();
+    delay(100);
     put_down();
     delay(200);
     backward();
@@ -827,6 +831,10 @@ void Solana(int Product, int kp, int kd, int turn_turn_90_delay, int turn_turn_d
                   { return (leftEncoder.getCount() >= 3250 || rightEncoder.getCount() >= 3250); }, kp, kd, 0, 80, 0, 0);
     stop();
     p_right(115);
+    backward(); //! 下面四行需要調整
+    delay(100);
+    stop();
+    delay(100);
     put_down();
     delay(200);
     backward();
@@ -861,7 +869,7 @@ void Solana(int Product, int kp, int kd, int turn_turn_90_delay, int turn_turn_d
     Padilla_trail(true, []()
                   { return (leftEncoder.getCount() >= 7000 || rightEncoder.getCount() >= 7000); }, kp, kd, 0, 80, 0, 0);
     p_right(115);
-    p_fw_v2(20);
+    // p_fw_v2(20); //! 不一定要註解
     put_down();
     delay(200);
     backward();
@@ -1479,8 +1487,8 @@ void setup()
   pick_up();
   delay(200);
 
-  p_right(105);
-  p_fw_v2(1250);
+  p_right(120);
+  p_fw_v2(1000);
   while (!(IR_M_read() == 1))
   {
     forward();
