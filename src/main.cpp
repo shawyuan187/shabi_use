@@ -1333,11 +1333,51 @@ void setup()
   // !已經到卸貨區十字路口
   turn_turn(0, 0, 1000);
 
+  // TODO: 以下是在學校寫的
+  p_fw_v2(200); // !需要調整
+  stop();
+  delay(100);
+  turn_turn(0, 0, 1000);
+
   // *準備打包成不目標物的指令
-  // leftEncoder.clearCount();
-  // rightEncoder.clearCount();
-  // auto_trail(false, []()
-  //            { return (leftEncoder.getCount() >= 3000 || rightEncoder.getCount() >= 3000); }, all_spd, 0, error);
+  leftEncoder.clearCount();
+  rightEncoder.clearCount();
+  Padilla_trail(false, []()
+                { return (leftEncoder.getCount() >= 3000 || rightEncoder.getCount() >= 3000); }, 50, 65, 0, all_spd, 0, error);
+
+  // *準備打包成不目標物的指令
+  // !卸貨指令等待調整
+  stop();
+  delay(100);
+  rightEncoder.clearCount();
+  while (!(IR_RR_read() == 1))
+  {
+    motor(-31, -250);
+  }
+  stop();
+  delay(100);
+  error = 0;
+  Padilla_trail(false, []()
+                { return (IR_M_read() == 1 || IR_L_read() == 1 || IR_R_read() == 1); }, 50, 65, 0, all_spd, 0, error);
+  p_fw_v2(200); // !需要調整
+
+  stop();
+  delay(100);
+  put_down();
+  arm_up();
+  backward();
+  delay(200);
+  p_left(80);
+  PID_spin_to_center(50, 50, 65, 2, 500); // 左轉對齊+驗證500ms
+  // !卸貨指令等待調整
+
+  arm_down();
+  // TODO:-------------------------------------------------------------------------------------
+  //  *準備打包成不目標物的指令
+  //  leftEncoder.clearCount();
+  //  rightEncoder.clearCount();
+  //  auto_trail(false, []()
+  //             { return (leftEncoder.getCount() >= 3000 || rightEncoder.getCount() >= 3000); }, all_spd, 0, error);
 
   // *準備打包成不目標物的指令
   stop();
