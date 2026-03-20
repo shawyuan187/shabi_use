@@ -1217,7 +1217,7 @@ void setup()
                         { return (false); }, 55, 40, 0, all_spd, 1000, error); // 50 -> 70
   Padilla_trail(false, []()
                 { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, 55, 50, 0, all_spd, 0, error);
-  p_fw_v2(100); // !需要調整
+  p_fw_v2(50); // !需要調整
   stop();
   delay(100);
   turn_turn(1, turn_turn_90_delay, 1000);
@@ -1253,10 +1253,10 @@ void setup()
   Padilla_trail(false, []()
                 { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, 50, 25, 0, all_spd, 0, error);
   // !已經到卸貨區十字路口
-  p_fw_v2(200); // !需要調整
-  stop();
-  delay(100);
-  turn_turn(0, 0, 1000);
+  p_fw_v2(100); // !需要調整
+  // stop();
+  // delay(100);
+  // turn_turn(0, 0, 1000);
 
   // *準備打包成不目標物的指令
   leftEncoder.clearCount();
@@ -1267,14 +1267,16 @@ void setup()
   // *準備打包成不目標物的指令
   // !卸貨指令等待調整
   stop();
-  delay(100);
+  delay(200);
   rightEncoder.clearCount();
-  while (!(IR_RR_read() == 1))
-  {
-    motor(-31, -250);
-  }
+  p_right(90); // !需要調整
+  // while (!(IR_RR_read() == 1))
+  // {
+  //   motor(-20, -150);
+  // }
   stop();
-  delay(100);
+  delay(20000);
+
   error = 0;
   Padilla_trail(false, []()
                 { return (IR_M_read() == 1 || IR_L_read() == 1 || IR_R_read() == 1); }, 50, 65, 0, all_spd, 0, error);
