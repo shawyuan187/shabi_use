@@ -1084,7 +1084,7 @@ void claw_close()
 void pick_up()
 {
   claw_close();
-  delay(200);
+  delay(500);
   arm_up();
   delay(200);
 }
@@ -1122,19 +1122,19 @@ int color_detect()
     huskylens.request();
     if (huskylens.countBlocks() > 0)
     {
-      if (huskylens.countBlocks(2) > 0)
+      if (huskylens.countBlocks(1) > 0)
       {
         target = 1; // 胡蘿蔔
         return target;
       }
-      else if (huskylens.countBlocks(1) > 0)
+      else if (huskylens.countBlocks(2) > 0)
       {
-        target = 0; // 番茄
+        target = 2; // 番茄
         return target;
       }
       else if (huskylens.countBlocks(3) > 0)
       {
-        target = 2; // 玉米
+        target = 3; // 玉米
         return target;
       }
     }
@@ -1199,7 +1199,7 @@ void setup()
   }
 
   int ProductA = -1;
-  // 0 - 番茄 | 1 - 胡蘿蔔 | 2 - 玉米
+  // 2 - 番茄 | 1 - 胡蘿蔔 | 3 - 玉米
 
   //======================================================================決賽程式開始（基八車）==============================================================
   camera_front();
@@ -1216,32 +1216,36 @@ void setup()
   error = Padilla_trail(false, []()
                         { return (false); }, 55, 40, 0, all_spd, 1000, error); // 50 -> 70
   Padilla_trail(false, []()
-                { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, 55, 50, 0, all_spd, 0, error);
-  p_fw_v2(50); // !需要調整
-  stop();
-  delay(100);
-  turn_turn(1, turn_turn_90_delay, 1000);
-  Padilla_trail(false, []()
-                { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, 50, 65, 0, slow_spd, 0, error);
+                { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, 30, 10, 0, all_spd, 0, error);
+  // p_fw_v2(50); // !需要調整
+  // stop();
+  // delay(50);
+  // turn_turn(1, turn_turn_90_delay, 1000);
+  // Padilla_trail(false, []()
+  //               { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, 0, 0, 0, slow_spd, 0, error);
 
   stop();
   delay(200);
+  backward();
+  delay(50);
+  stop();
+  delay(100);
   ProductA = color_detect();
   // * 夾取第一個貨物
   pick_up();
-  if (ProductA == 0) // 番茄
-    p_left(120);
+  if (ProductA == 2) // 番茄
+    p_left(90);
   else if (ProductA == 1) // 胡蘿蔔
-    p_left(110);
-  else if (ProductA == 2) // 玉米
-    p_left(100);
+    p_left(90);
+  else if (ProductA == 3) // 玉米
+    p_left(90);
   // p_left(100); // !需要調整
   stop();
   delay(100);
   // * 出軌直接衝到閘門前的路線準備循跡
   p_fw_v2(3700); // !需要調整
   stop();
-  while (!(IR_M_read() == 1))
+  while (!(IR_R_read() == 1))
   {
     forward();
   }
@@ -1251,74 +1255,201 @@ void setup()
   delay(100);
   turn_turn(0, 90, 1500); // ! 已經回到黑線上
   Padilla_trail(false, []()
-                { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, 50, 25, 0, all_spd, 0, error);
+                { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, 50, 30, 0, all_spd, 0, error);
   // !已經到卸貨區十字路口
   p_fw_v2(100); // !需要調整
-  // stop();
-  // delay(100);
-  // turn_turn(0, 0, 1000);
-
-  // *準備打包成不目標物的指令
-  leftEncoder.clearCount();
-  rightEncoder.clearCount();
-  Padilla_trail(false, []()
-                { return (leftEncoder.getCount() >= 3000 || rightEncoder.getCount() >= 3000); }, 50, 65, 0, all_spd, 0, error);
-
-  // *準備打包成不目標物的指令
-  // !卸貨指令等待調整
-  stop();
-  delay(200);
-  rightEncoder.clearCount();
-  p_right(90); // !需要調整
-  // while (!(IR_RR_read() == 1))
-  // {
-  //   motor(-20, -150);
-  // }
-  stop();
-  delay(20000);
-
-  error = 0;
-  Padilla_trail(false, []()
-                { return (IR_M_read() == 1 || IR_L_read() == 1 || IR_R_read() == 1); }, 50, 65, 0, all_spd, 0, error);
-  p_fw_v2(200); // !需要調整
-
   stop();
   delay(100);
-  put_down();
-  arm_up();
-  backward();
-  delay(200);
-  p_left(80);
-  PID_spin_to_center(50, 50, 65, 2, 500); // 左轉對齊+驗證500ms
-  // !卸貨指令等待調整
+  turn_turn(0, 0, 1000);
+  if (ProductA == 2)
+  { // 番茄
+    //?___________________________________________________________________PRODUCt 2(TOMATO)____________________________________________________________________________________
+    leftEncoder.clearCount();
+    rightEncoder.clearCount();
+    Padilla_trail(false, []()
+                  { return (leftEncoder.getCount() >= 3000 || rightEncoder.getCount() >= 3000); }, 50, 65, 0, all_spd, 0, error);
+    p_fw_v2(200); // !需要調整
 
-  arm_down();
-  // *已經卸貨完畢回到B區十字路口
-  leftEncoder.clearCount();
-  rightEncoder.clearCount();
-  Padilla_trail(false, []()
-                { return (leftEncoder.getCount() >= 5000 || rightEncoder.getCount() >= 5000); }, 50, 65, 0, all_spd, 0, error);
-  delay(50);
-  stop();
-  delay(200);
-  p_fw_v2(1500);
+    // *準備打包成不目標物的指令
+    // !卸貨指令等待調整
+    stop();
+    delay(200);
+    rightEncoder.clearCount();
+    p_right(120); // !需要調整
+    // while (!(IR_RR_read() == 1))
+    // {
+    //   motor(-20, -150);
+    // }
+    stop();
+    delay(500);
 
-  //* 前往第三個目標物
-  error = 0;
-  Padilla_trail(false, []()
-                { return (IR_R_read() == 1); }, 50, 65, 0, 50, 0, error);
-  p_fw_v2(200); // !需要調整
+    error = 0;
+    // Padilla_trail(false, []()
+    //               { return (IR_M_read() == 1 || IR_L_read() == 1 || IR_R_read() == 1); }, 50, 65, 0, all_spd, 0, error);
+    // p_fw_v2(200); // !需要調整
+
+    stop();
+    delay(100);
+    put_down();
+    arm_up();
+    backward();
+    delay(200);
+    p_left(80);
+    PID_spin_to_center(50, 50, 65, 2, 500); // 左轉對齊+驗證500ms
+    // !卸貨指令等待調整
+
+    arm_down();
+    // *已經卸貨完畢回到B區十字路口
+    leftEncoder.clearCount();
+    rightEncoder.clearCount();
+    Padilla_trail(false, []()
+                  { return (leftEncoder.getCount() >= 5000 || rightEncoder.getCount() >= 5000); }, 50, 65, 0, all_spd, 0, error);
+    delay(50);
+    stop();
+    delay(200);
+    p_fw_v2(1500);
+
+    //* 前往第三個目標物
+    error = 0;
+    Padilla_trail(false, []()
+                  { return (IR_R_read() == 1); }, 50, 65, 0, 50, 0, error);
+    p_fw_v2(200); // !需要調整
+    stop();
+    delay(200);
+    turn_turn(0, 80, 1500);
+  }
+  else if (ProductA == 1)
+  {
+    //?___________________________________________________________________PRODUCt 1(CARROT)____________________________________________________________________________________
+    leftEncoder.clearCount();
+    rightEncoder.clearCount();
+    Padilla_trail(false, []()
+                  { return (leftEncoder.getCount() >= 6000 || rightEncoder.getCount() >= 6000); }, 50, 65, 0, all_spd, 0, error);
+    // *準備打包成不目標物的指令
+    // !卸貨指令等待調整
+    stop();
+    delay(200);
+    rightEncoder.clearCount();
+    p_right(110); // !需要調整
+    // while (!(IR_RR_read() == 1))
+    // {
+    //   motor(-20, -150);
+    // }
+    stop();
+    delay(500);
+
+    error = 0;
+    // Padilla_trail(false, []()
+    //               { return (IR_M_read() == 1 || IR_L_read() == 1 || IR_R_read() == 1); }, 50, 65, 0, all_spd, 0, error);
+    // p_fw_v2(200); // !需要調整
+
+    stop();
+    delay(100);
+    put_down();
+    arm_up();
+    backward();
+    delay(200);
+    p_left(30);
+    while (!(IR_L_read() == 1))
+    {
+      motor(50, 60);
+    }
+    PID_spin_to_center(50, 50, 65, 2, 500); // 左轉對齊+驗證500ms
+    // !卸貨指令等待調整
+
+    arm_down();
+    // *已經卸貨完畢回到B區十字路口
+    leftEncoder.clearCount();
+    rightEncoder.clearCount();
+    Padilla_trail(false, []()
+                  { return (leftEncoder.getCount() >= 1200 || rightEncoder.getCount() >= 1200); }, 50, 65, 0, all_spd, 0, error);
+    stop();
+    delay(200);
+    p_fw_v2(1000);
+
+    //* 前往第三個目標物
+    error = 0;
+    Padilla_trail(false, []()
+                  { return (IR_R_read() == 1); }, 50, 65, 0, 50, 0, error);
+    p_fw_v2(200); // !需要調整
+    stop();
+    delay(200);
+    turn_turn(0, 80, 1500);
+  } // 胡蘿蔔
+
+  else if (ProductA == 3)
+  { // 玉米
+    //?___________________________________________________________________PRODUCt 3(CORN)____________________________________________________________________________________
+    leftEncoder.clearCount();
+    rightEncoder.clearCount();
+    p_fw_v2(100); // !需要調整
+    turn_turn(1, turn_turn_90_delay, 1000);
+    Padilla_trail(false, []()
+                  { return (leftEncoder.getCount() >= 2500 || rightEncoder.getCount() >= 2500); }, 50, 65, 0, all_spd, 0, error);
+    p_fw_v2(200); // !需要調整
+    // *準備打包成不目標物的指令
+    // !卸貨指令等待調整
+    stop();
+    delay(200);
+    rightEncoder.clearCount();
+    p_left(90); // !需要調整
+    // while (!(IR_RR_read() == 1))
+    // {
+    //   motor(-20, -150);
+    // }
+    stop();
+    delay(500);
+
+    error = 0;
+    // Padilla_trail(false, []()
+    //               { return (IR_M_read() == 1 || IR_L_read() == 1 || IR_R_read() == 1); }, 50, 65, 0, all_spd, 0, error);
+    // p_fw_v2(200); // !需要調整
+
+    stop();
+    delay(100);
+    put_down();
+    arm_up();
+    backward();
+    delay(100);
+    p_right(80);
+    PID_spin_to_center(50, 50, 65, 2, 500); // 左轉對齊+驗證500ms
+    // !卸貨指令等待調整
+
+    arm_down();
+    // *已經卸貨完畢回到B區十字路口
+    leftEncoder.clearCount();
+    rightEncoder.clearCount();
+    Padilla_trail(false, []()
+                  { return (leftEncoder.getCount() >= 500 || rightEncoder.getCount() >= 500); }, 50, 65, 0, all_spd, 0, error);
+    delay(50);
+    stop();
+    delay(200);
+    p_right(90);
+    p_fw_v2(1200);
+
+    //* 前往第三個目標物
+    error = 0;
+    Padilla_trail(false, []()
+                  { return (IR_R_read() == 1); }, 50, 65, 0, 50, 0, error);
+    p_fw_v2(200); // !需要調整
+    stop();
+    delay(200);
+    turn_turn(0, 80, 1500);
+    //?___________________________________________________________________corn end____________________________________________________________________________________
+  }
   stop();
-  delay(200);
-  turn_turn(0, 80, 1500);
+  delay(100);
+  // *準備打包成不目標物的指令
+
   error = 0;
   Padilla_trail(false, []()
                 { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, 50, 65, 0, 50, 0, error);
-  p_fw_v2(70); // !需要調整
+  p_fw_v2(60); // !需要調整
   stop();
+  delay(50);
   turn_turn(0, turn_turn_90_delay, 1000);
   Padilla_trail(false, []()
-                { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, 50, 65, 0, 50, 0, error);
+                { return (IR_M_read() == 1 && IR_L_read() == 1 && IR_R_read() == 1); }, 10, 0, 0, 50, 0, error);
 
   stop();
   delay(200);
@@ -1327,7 +1458,7 @@ void setup()
   backward();
   delay(200);
   stop();
-  turn_turn(0, 250, 1000);
+  turn_turn(0, 200, 1000);
   Padilla_trail(false, []()
                 { return (false); }, 50, 65, 0, all_spd, 1000, error);
   Padilla_trail(false, []()
