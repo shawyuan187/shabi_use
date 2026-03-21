@@ -1317,7 +1317,7 @@ void setup()
   int Product1 = -1;
   int Product2 = -1;
   int Product3 = -1;
-  // 0 - 番茄 | 1 - 胡蘿蔔 | 2 - 玉米 | -1 - 未知
+  // 0 - 番茄 | 1 - 胡蘿蔔 | 2 - 玉米 | -1 - 未知 | -2 - 已夾取
 
   // PID OK 參數
   // 40, 0, 0, 80
@@ -1350,8 +1350,11 @@ void setup()
                 { return (IR_RR_read() == 1 || IR_LL_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0); // 走到蔬菜前面
   big_stop();
   delay(500);
-  ProductB = color_detect(); // 辨識產品
-  pick_up();
+  if (ProductB != -2)
+  {
+    ProductB = color_detect(); // 辨識產品
+    pick_up();
+  }
   p_right(90); // 右轉90度，準備衝刺
   stop();
   p_fw_v2(2500); // 離線
@@ -1430,7 +1433,7 @@ void setup()
     Padilla_trail(false, []()
                   { return (IR_RR_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0); // 抵達C區路口
   }
-  else
+  else if (ProductB == 2)
   {
     leftEncoder.clearCount();
     turn_turn(1, turn_turn_90_delay + 100, turn_turn_delay); // 往右轉直到對齊前往黃色區域的黑線
@@ -1472,106 +1475,125 @@ void setup()
     Padilla_trail(false, []()
                   { return (IR_RR_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0); // 抵達C區路口
   }
-  // */
+  else if (ProductB == -2) // Product B夾完了
+  {
+    turn_turn(0, turn_turn_90_delay, turn_turn_delay);
+    leftEncoder.clearCount();
+    rightEncoder.clearCount();
+    error = Padilla_trail(false, []()
+                          { return (leftEncoder.getCount() >= 3000 || rightEncoder.getCount() >= 3000); }, all_kp, all_kd, 0, 80, 0, 0); // TODO: 可能需要更改exit condition
+    Padilla_trail(false, []()
+                  { return (IR_RR_read() == 1); }, all_kp, all_kd, 0, 80, 0, error); // 抵達C區路口
+  }
+
   // 測試用程式，與前面if相等，完整版需刪除
   // ! 若要從C區開始測試，可以將前面的/*和*/反註解，並反註解下面兩行，車子放在C區路口前的直線(連結到B區的黑線)上
   // Padilla_trail(false, []()
   //               { return (IR_RR_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0);
-  stop();
-  backward();
-  delay(100);
-  stop();
-  arm_down();
-  turn_turn(1, turn_turn_90_delay, turn_turn_delay); // 右轉夾取二號物品
-  leftEncoder.clearCount();
-  rightEncoder.clearCount();
-  Padilla_trail(false, []()
-                { return (leftEncoder.getCount() > 350 || rightEncoder.getCount() > 350); }, all_kp, all_kd, 0, 80, 0, error);
-  PID_spin_to_center(80, all_kp, all_kd, 2, 1000);
-  Product2 = color_detect(); // 開啟顏色辨識
-  stop();
-  delay(500);
-
-  Padilla_trail(false, []()
-                { return (IR_R_read() == 1 && IR_M_read() == 1 && IR_L_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0); // 走到夾取物品的地方
-  stop();
-  // backward();
-  // delay(100);
-  // stop();
-  delay(500);
-  pick_up(); // 夾取物品 // TODO: 需研究物品擺放的位置，以確保夾取成功率
-  delay(200);
-
-  p_right(120); // 右轉120度，準備切回C區中線
-  p_fw_v2(1000);
-  while (!(IR_M_read() == 1))
+  if (Product2 != -2)
   {
-    forward();
+    stop();
+    backward();
+    delay(100);
+    stop();
+    arm_down();
+    turn_turn(1, turn_turn_90_delay, turn_turn_delay); // 右轉夾取二號物品
+    leftEncoder.clearCount();
+    rightEncoder.clearCount();
+    Padilla_trail(false, []()
+                  { return (leftEncoder.getCount() > 350 || rightEncoder.getCount() > 350); }, all_kp, all_kd, 0, 80, 0, error);
+    PID_spin_to_center(80, all_kp, all_kd, 2, 1000);
+    Product2 = color_detect(); // 開啟顏色辨識
+    stop();
+    delay(500);
+
+    Padilla_trail(false, []()
+                  { return (IR_R_read() == 1 && IR_M_read() == 1 && IR_L_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0); // 走到夾取物品的地方
+    stop();
+    // backward();
+    // delay(100);
+    // stop();
+    delay(500);
+    pick_up(); // 夾取物品 // TODO: 需研究物品擺放的位置，以確保夾取成功率
+    delay(200);
+
+    p_right(120); // 右轉120度，準備切回C區中線
+    p_fw_v2(1000);
+    while (!(IR_M_read() == 1))
+    {
+      forward();
+    }
+    stop();                                          // 抵達C區中線
+    PID_spin_to_center(80, all_kp, all_kd, 2, 2000); // 對準黑線，以準備進行Solana路徑，請確保車子在黑線的正中間上
+    Solana(Product2, all_kp, all_kd, turn_turn_90_delay, turn_turn_delay);
+    // 返回C區中線
+    Padilla_trail(false, []()
+                  { return (IR_RR_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0); // 抵達路口
   }
-  stop();                                          // 抵達C區中線
-  PID_spin_to_center(80, all_kp, all_kd, 2, 2000); // 對準黑線，以準備進行Solana路徑，請確保車子在黑線的正中間上
-  Solana(Product2, all_kp, all_kd, turn_turn_90_delay, turn_turn_delay);
-  // 返回C區中線
-  Padilla_trail(false, []()
-                { return (IR_RR_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0); // 抵達路口
-  stop();
-  backward();
-  delay(100);
-  stop();
-  arm_down();
-  turn_turn(0, turn_turn_90_delay, turn_turn_delay); // 左轉夾取一號物品
-  leftEncoder.clearCount();
-  rightEncoder.clearCount();
-  Padilla_trail(false, []()
-                { return (leftEncoder.getCount() > 350 || rightEncoder.getCount() > 350); }, all_kp, all_kd, 0, 80, 0, error);
-  PID_spin_to_center(80, all_kp, all_kd, 2, 1000);
-  Product1 = color_detect();
-  stop();
-  delay(500);
-  Padilla_trail(false, []()
-                { return (IR_R_read() == 1 && IR_M_read() == 1 && IR_L_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0);
-  stop(); // 抵達一號物品位置
-
-  // backward();
-  // delay(200);
-  // stop();
-  delay(500);
-  pick_up(); // 夾取一號物品 // TODO: 需研究物品擺放的位置，以確保夾取成功率
-
-  p_left(120); // 左轉120度，準備切回C區中線
-  p_fw_v2(750);
-  while (!(IR_M_read() == 1))
+  if (Product1 != -2)
   {
-    forward();
-  } // 衝刺回C區中線
-  stop();
-  PID_spin_to_center(80, all_kp, all_kd, 2, 2000); // 對準黑線，準備進行Solana路徑，請確保車子在黑線的正中間上
-  Solana(Product1, all_kp, all_kd, turn_turn_90_delay, turn_turn_delay);
-  // 返回C區中線
-  Padilla_trail(false, []()
-                { return (IR_RR_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0); // 抵達C區路口
-  Padilla_trail(false, []()
-                { return (IR_RR_read() == 0 && IR_LL_read() == 0); }, all_kp, all_kd, 0, 80, 0, 0); // 越過路口黑線
-  arm_down();
-  PID_spin_to_center(80, all_kp, all_kd, 2, 1000); // 對準黑線，使得Padilla_trail可以使用中間三顆燈為exitcondition
-  Product3 = color_detect();
-  Padilla_trail(false, []()
-                { return (IR_R_read() == 1 && IR_M_read() == 1 && IR_L_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0);
-  stop();
-  delay(500);
-  pick_up(); // TODO: 需研究物品擺放的位置，以確保夾取成功率
+    stop();
+    backward();
+    delay(100);
+    stop();
+    arm_down();
+    turn_turn(0, turn_turn_90_delay, turn_turn_delay); // 左轉夾取一號物品
+    leftEncoder.clearCount();
+    rightEncoder.clearCount();
+    Padilla_trail(false, []()
+                  { return (leftEncoder.getCount() > 350 || rightEncoder.getCount() > 350); }, all_kp, all_kd, 0, 80, 0, error);
+    PID_spin_to_center(80, all_kp, all_kd, 2, 1000);
+    Product1 = color_detect();
+    stop();
+    delay(500);
+    Padilla_trail(false, []()
+                  { return (IR_R_read() == 1 && IR_M_read() == 1 && IR_L_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0);
+    stop(); // 抵達一號物品位置
 
-  turn_turn(1, turn_turn_180_delay, turn_turn_delay); // 轉180度，準備回去放三號物品
-  Padilla_trail(false, []()
-                { return (IR_RR_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0); // 抵達C區路口
-  Padilla_trail(false, []()
-                { return (IR_RR_read() == 0 && IR_LL_read() == 0); }, all_kp, all_kd, 0, 80, 0, 0); // 越過路口黑線
-  leftEncoder.clearCount();
-  rightEncoder.clearCount();
-  Padilla_trail(false, []()
-                { return (leftEncoder.getCount() >= 3000 || rightEncoder.getCount() >= 3000); }, all_kp, all_kd, 0, 80, 0, 0); // 循跡一段距離，準備進行Solana路徑
-  PID_spin_to_center(80, all_kp, all_kd, 2, 2000);                                                                             // 對準黑線，準備進行Solana路徑，請確保車子在黑線的正中間上
-  Solana(Product3, all_kp, all_kd, turn_turn_90_delay, turn_turn_delay);
+    // backward();
+    // delay(200);
+    // stop();
+    delay(500);
+    pick_up(); // 夾取一號物品 // TODO: 需研究物品擺放的位置，以確保夾取成功率
+
+    p_left(120); // 左轉120度，準備切回C區中線
+    p_fw_v2(750);
+    while (!(IR_M_read() == 1))
+    {
+      forward();
+    } // 衝刺回C區中線
+    stop();
+    PID_spin_to_center(80, all_kp, all_kd, 2, 2000); // 對準黑線，準備進行Solana路徑，請確保車子在黑線的正中間上
+    Solana(Product1, all_kp, all_kd, turn_turn_90_delay, turn_turn_delay);
+    // 返回C區中線
+    Padilla_trail(false, []()
+                  { return (IR_RR_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0); // 抵達C區路口
+  }
+  if (Product3 != -2)
+  {
+    Padilla_trail(false, []()
+                  { return (IR_RR_read() == 0 && IR_LL_read() == 0); }, all_kp, all_kd, 0, 80, 0, 0); // 越過路口黑線
+    arm_down();
+    PID_spin_to_center(80, all_kp, all_kd, 2, 1000); // 對準黑線，使得Padilla_trail可以使用中間三顆燈為exitcondition
+    Product3 = color_detect();
+    Padilla_trail(false, []()
+                  { return (IR_R_read() == 1 && IR_M_read() == 1 && IR_L_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0);
+    stop();
+    delay(500);
+    pick_up(); // TODO: 需研究物品擺放的位置，以確保夾取成功率
+
+    turn_turn(1, turn_turn_180_delay, turn_turn_delay); // 轉180度，準備回去放三號物品
+    Padilla_trail(false, []()
+                  { return (IR_RR_read() == 1); }, all_kp, all_kd, 0, 80, 0, 0); // 抵達C區路口
+    Padilla_trail(false, []()
+                  { return (IR_RR_read() == 0 && IR_LL_read() == 0); }, all_kp, all_kd, 0, 80, 0, 0); // 越過路口黑線
+    leftEncoder.clearCount();
+    rightEncoder.clearCount();
+    Padilla_trail(false, []()
+                  { return (leftEncoder.getCount() >= 3000 || rightEncoder.getCount() >= 3000); }, all_kp, all_kd, 0, 80, 0, 0); // 循跡一段距離，準備進行Solana路徑
+    PID_spin_to_center(80, all_kp, all_kd, 2, 2000);                                                                             // 對準黑線，準備進行Solana路徑，請確保車子在黑線的正中間上
+    Solana(Product3, all_kp, all_kd, turn_turn_90_delay, turn_turn_delay);
+  }
   stop(); // 程式結束，Product B, Product 1, Product 2, Product 3 已經分別放置到對應的區域
 }
 
